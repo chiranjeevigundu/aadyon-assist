@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile all Python (syntax)
+        run: python -m compileall -q code/api/app
+      - name: Ruff (real bugs only — syntax + undefined names)
+        run: |
+          pip install ruff
+          ruff check --select=E9,F63,F7,F82 code/api
+      - name: Dashboard JS syntax (inline scripts + assets)
+        run: |
+          node -e '
+            const fs=require("fs"), vm=require("vm");
+            for (const f of fs.readdirSync("code/dashboard")) {
+              if (!f.endsWith(".html")) continue;
+              const h=fs.readFileSync("code/dashboard/"+f,"utf8");
+              for (const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)) new vm.Script(m[1]);
+              console.log("ok:", f);
+            }
+            const a="code/dashboard/assets";
+            for (const f of fs.readdirSync(a)) if (f.endsWith(".js")) { new vm.Script(fs.readFileSync(a+"/"+f,"utf8")); console.log("ok:", f); }
+          '
+      - name: Validate docker-compose
+        run: |
+          mkdir -p secrets && printf 'ci' > secrets/db_password.txt
+          printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
+          docker compose config -q
+          echo "compose config valid"
+
+  guard:
+    name: Secret / personal-data guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files for secrets or personal data
+        run: |
+          # High-signal patterns only, to avoid false positives. The workflow dir and
+          # the placeholder example seed are excluded.
+          PAT='sk-or-v1-[0-9a-fA-F]{8,}|sk-[A-Za-z0-9_-]{20,}|Chiranjeevi Gundu|Jason Marquart|Axitem Software|6551\.68|59552\.27|2743\.27|2928\.42'
+          if git grep -nE "$PAT" -- ':!.github/' ':!code/db/seed.example.sql'; then
+            echo "::error::Secret or personal data found in tracked files — do not commit this."
+            exit 1
+          fi
+          echo "Clean: no secrets or personal data in tracked files."
+
+  smoke:
+    name: Build & smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create throwaway env + secret (no real data)
+        run: |
+          mkdir -p secrets && printf 'ci-test-password' > secrets/db_password.txt
+          printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
+      - name: Build & start db + api
+        run: docker compose up -d --build db api
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:8000/api/health >/dev/null 2>&1; then echo "API up"; exit 0; fi
+            sleep 3
+          done
+          echo "API did not become healthy in time"; docker compose logs api; exit 1
+      - name: Hit key endpoints
+        run: |
+          set -e
+          curl -fsS http://localhost:8000/api/health | grep -q '"db":"up"'
+          curl -fsS http://localhost:8000/api/digital-me  >/dev/null
+          curl -fsS http://localhost:8000/api/entities    >/dev/null
+          curl -fsS http://localhost:8000/api/agency/org   | grep -q 'Aadyon CEO'
+          curl -fsS http://localhost:8000/api/agency/health >/dev/null
+          echo "Smoke test passed."
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
+
+  tests:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps + pytest
+        run: pip install -r code/api/requirements.txt pytest
+      - name: Run pytest (imports + pure logic, no DB needed)
+        run: pytest

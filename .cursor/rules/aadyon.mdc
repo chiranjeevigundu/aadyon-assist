@@ -1,0 +1,28 @@
+---
+description: Aadyon Assist — project rules for AI agents
+alwaysApply: true
+---
+
+Read **AGENTS.md** at the repo root for the full operating manual before changing code.
+
+Non-negotiable rules:
+
+- Never commit personal, financial, or immigration data (seed data, dumps, `artifacts/`,
+  `documents/` are gitignored). CI fails on known personal strings.
+- Read-only + human-in-the-loop: email sync and agents may read and *propose* only; nothing
+  auto-executes a payment, email, filing, or destructive action.
+- The API has no auth — keep it private to Tailscale; never expose publicly or run `tailscale funnel`.
+- Secrets come from Docker secrets (secret file → env fallback), never committed values.
+- Any new third-party import must be added, pinned, to `code/api/requirements.txt`.
+
+How the code works:
+
+- One Postgres DB is the source of truth. Stack: FastAPI + Docker Compose (six services).
+- CRUD routers are generated from `code/api/app/models/tables.py` — to add a table, write a
+  migration in `code/db/init/NN_name.sql` and register an `Entity`; don't hand-write endpoints.
+- Metric math lives in `services/` (e.g. `common.py`, `dimensions.py`); don't duplicate it in views.
+- Email pipeline is split: `email_imap`/`email_graph` (read), `email_extract` (LLM), `email_store`
+  (persist), `email_ingest` (dispatch). Agents: `services/tools.py` + `services/agency.py`.
+
+Verify before done: `pytest`, and `scripts/verify.py` for API parity on refactors.
+Full architecture: SYSTEM.md.

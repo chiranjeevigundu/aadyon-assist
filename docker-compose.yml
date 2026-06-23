@@ -1,0 +1,138 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./code/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./code
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      ARTIFACTS_DIR: /srv/artifacts
+    secrets:
+      - db_password
+    volumes:
+      - ./artifacts:/srv/artifacts
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach local Ollama on the host
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Writes artifacts/briefing-YYYY-MM-DD.md once on start, then daily at BRIEFING_HOUR.
+  briefing:
+    build:
+      context: ./code
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      ARTIFACTS_DIR: /srv/artifacts
+    secrets:
+      - db_password
+    volumes:
+      - ./artifacts:/srv/artifacts
+    command: ["python", "-m", "app.jobs.briefing_loop"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Agentic worker: drains the task queue (CEO -> teams) using OpenRouter / Ollama.
+  agency:
+    build:
+      context: ./code
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      ARTIFACTS_DIR: /srv/artifacts
+    secrets:
+      - db_password
+    volumes:
+      - ./artifacts:/srv/artifacts
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach local Ollama on the host
+    command: ["python", "-m", "app.jobs.agency_loop"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Nightly pg_dump into data/exports, keeping the last 14 days.
+  backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    env_file: .env
+    secrets:
+      - db_password
+    volumes:
+      - ./data/exports:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        export PGPASSWORD="$$(cat /run/secrets/db_password)"
+        while true; do
+          f="/backups/aadyon_$$(date +%F).sql"
+          echo "[backup] writing $$f"
+          pg_dump -h db -U "$${POSTGRES_USER}" "$${POSTGRES_DB}" > "$$f" || echo "[backup] dump failed"
+          find /backups -name 'aadyon_*.sql' -mtime +14 -delete 2>/dev/null || true
+          sleep 86400
+        done
+
+  # Self-hosted push server (briefing -> phone). Private to your tailnet; the
+  # iOS background wake is proxied via ntfy.sh upstream (no content leaves the tailnet).
+  ntfy:
+    image: binwiederhier/ntfy
+    restart: unless-stopped
+    command: serve
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost:8090}
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh   # iOS background delivery (poll-only)
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+      NTFY_CACHE_DURATION: "72h"
+      NTFY_BEHIND_PROXY: "false"
+    volumes:
+      - ntfycache:/var/cache/ntfy
+    ports:
+      - "${NTFY_PORT:-8090}:80"
+
+volumes:
+  pgdata:
+  ntfycache:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
