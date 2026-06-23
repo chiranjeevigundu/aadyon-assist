@@ -15,7 +15,7 @@ def test_digital_me_payload_and_composite(monkeypatch):
     out = digital_me.digital_me()
     # 0.35*40 + 0.30*60 + 0.25*20 + 0.10*50 = 14 + 18 + 5 + 5 = 42
     assert out["overall"]["score"] == 42
-    assert out["overall"]["band"] == "fair"
+    assert out["overall"]["band"] == "at risk"   # bands: strong>=75, fair>=50, at risk>=25
     assert set(out) >= {"as_of", "profile", "life", "income", "overall", "dimensions"}
     assert set(out["dimensions"]) == {"financial", "visa", "career", "goal"}
     assert out["profile"]["full_name"] == "Test User"
