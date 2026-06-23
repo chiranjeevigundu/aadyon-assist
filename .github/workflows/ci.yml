@@ -83,6 +83,10 @@ jobs:
           curl -fsS http://localhost:8000/api/entities    >/dev/null
           curl -fsS http://localhost:8000/api/agency/org   | grep -q 'Aadyon CEO'
           curl -fsS http://localhost:8000/api/agency/health >/dev/null
+          curl -fsS http://localhost:8000/api/summary      >/dev/null
+          curl -fsS "http://localhost:8000/api/email/extractions?status=pending" >/dev/null
+          curl -fsS http://localhost:8000/api/deadlines    >/dev/null
+          curl -fsS http://localhost:8000/api/briefing     >/dev/null
           echo "Smoke test passed."
       - name: Dump logs on failure
         if: failure()
