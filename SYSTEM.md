@@ -332,26 +332,34 @@ Every table has DB-managed `id` (UUID), `created_at`, and `updated_at`.
 
 ### 9.2 Deploy a change
 
+History is **linear** (no force-push) so multiple agents can collaborate via branches + PRs.
+Features land through a Pull Request gated by CI; a human merges to `main` and deploys.
+
 ```powershell
-# laptop — clean-history single-commit force-push (respects .gitignore)
-.\commit-and-push.bat
+# laptop — start a feature branch, commit, push, open a PR
+.\feature.bat                 # creates feat/<name> off an up-to-date main
+.\commit-and-push.bat         # normal commit + push; prints the PR link
 ```
 ```bash
-# Mini-A — history is rewritten upstream, so reset rather than pull-merge
-cd ~/aadyon-assist && git fetch origin && git reset --hard origin/main \
+# Mini-A — after the PR is merged to main, fast-forward and rebuild (human-serialized)
+cd ~/aadyon-assist && git pull --ff-only \
   && docker compose up -d --build api briefing agency
 ```
 
-`.github/workflows/ci.yml` runs lint + a personal-data guard + a smoke test on push;
-`publish.yml` publishes the image to GHCR.
+`.github/workflows/ci.yml` runs lint + the personal-data guard + `pytest` + a build smoke test on
+every push and PR; `publish.yml` builds and pushes the API image to GHCR. Deploy stays a human
+step — agents never auto-deploy to the shared server.
 
 ### 9.3 Schema migrations
 
-The `code/db/init/*.sql` scripts run **only on first boot of an empty volume**. For an existing
-database (like the Mini-A), apply a new migration manually:
+The `code/db/init/*.sql` scripts run **only on first boot of an empty volume**, in filename
+order. New migrations use a **timestamped** name (`scripts/new-migration.sh <name>` →
+`<YYYYMMDDHHMM>_<name>.sql`) so parallel agents never collide on a sequential number; these sort
+after the original `01..09_` scripts and before `99_seed_local`. For an existing database (like
+the Mini-A), apply a new migration manually:
 
 ```bash
-docker compose exec -T db psql -U aadyon -d aadyon_assist < code/db/init/NN_name.sql
+docker compose exec -T db psql -U aadyon -d aadyon_assist < code/db/init/<timestamp>_name.sql
 ```
 
 ### 9.4 Backups & restore

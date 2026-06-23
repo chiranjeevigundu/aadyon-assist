@@ -78,7 +78,9 @@ personal-data `guard`, `pytest`, and a Docker build + endpoint smoke test.
 ## Recipes
 
 **Add a new entity (table the data admin can edit):**
-1. Write a migration `code/db/init/NN_name.sql` (next number). Include `id uuid`, `created_at`,
+1. Create a migration with a **timestamped** name (never a sequential `NN_` number — those
+   collide when agents work in parallel): run `scripts/new-migration.sh add_widget_table`, which
+   writes `code/db/init/<YYYYMMDDHHMM>_add_widget_table.sql`. Include `id uuid`, `created_at`,
    `updated_at` like the existing tables.
 2. Register it in `code/api/app/models/tables.py` as an `Entity(table, [writable columns], order_by)`.
    That alone generates full CRUD endpoints and a typed admin form — no router code needed.
@@ -98,15 +100,33 @@ tables), editable in the data admin — usually no code change. Tool definitions
 
 ---
 
+## Working in parallel (multiple agents / Cowork)
+
+Codex, Antigravity, and Claude-in-Cowork can develop features at the same time. To keep that
+safe, history is **linear** (no force-push) and work lands via branches + PRs:
+
+1. **One branch per feature.** Start with `feature.bat` (or `git checkout -b feat/<name>` off an
+   up-to-date `main`). Never commit feature work straight to `main`.
+2. **Open a PR; let CI gate it.** Every PR runs `pytest` + the personal-data guard + the build
+   smoke test. Merge only when green and reviewed (see `.github/CODEOWNERS`).
+3. **Timestamped migrations only** (see the recipe above) — sequential `NN_` numbers collide.
+4. **Deploy is human-serialized.** There is exactly one shared server (Mini-A) and one database;
+   agents must **never auto-deploy**. A human merges to `main`, then runs the deploy below.
+5. **Cloud agents verify with `pytest`, not the live stack.** They don't have `.env`/Docker
+   secrets, so `pytest` (DB-free by design) is their gate; `scripts/verify.py` needs a running
+   API and is run by whoever has the stack.
+6. **Avoid two agents editing the same module at once.** Coordinate via PR scope; the generated-
+   CRUD design keeps most features localized, which minimizes conflicts.
+
 ## Deploy ritual
 
 ```powershell
-# laptop — single clean commit, force-pushed (history is intentionally rewritten)
+# laptop — commit current branch and push (normal history). Open a PR if it's a feature branch.
 .\commit-and-push.bat
 ```
 ```bash
-# Mini-A — upstream history was rewritten, so reset (don't merge), then rebuild
-cd ~/aadyon-assist && git fetch origin && git reset --hard origin/main \
+# Mini-A — history is linear now, so a normal fast-forward pull works
+cd ~/aadyon-assist && git pull --ff-only \
   && docker compose up -d --build api briefing agency
 ```
 
@@ -115,9 +135,10 @@ cd ~/aadyon-assist && git fetch origin && git reset --hard origin/main \
 ## ⚠️ Gotchas (learned the hard way)
 
 - **Migrations only auto-run on an empty DB volume.** For the live Mini-A database, apply a new
-  migration manually: `docker compose exec -T db psql -U aadyon -d aadyon_assist < code/db/init/NN_name.sql`.
-- **`commit-and-push.bat` rewrites history (force-push).** On any other clone, use
-  `git fetch && git reset --hard origin/main`, never a plain `git pull`.
+  migration manually: `docker compose exec -T db psql -U aadyon -d aadyon_assist < code/db/init/<timestamp>_name.sql`.
+- **History is linear — do not force-push `main`.** `commit-and-push.bat` now makes normal
+  incremental commits so PR-based agents don't get clobbered. A plain `git pull --ff-only` works
+  on every clone. (If you ever rewrite history, you break every open PR and every other clone.)
 - **Routers are generated from `tables.py`.** Don't hand-write CRUD endpoints; add the `Entity`.
 - **Don't trust a stale editor/shell mount for verification.** If a tool reports null bytes or
   wrong line numbers on a file you just edited, re-read it with the editor's own file reader; the
