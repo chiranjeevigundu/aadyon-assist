@@ -40,3 +40,21 @@ def test_push_failure_is_swallowed(monkeypatch):
     monkeypatch.setattr(notify.requests, "post", boom)
     # A failed push must never break the briefing.
     assert notify.push_briefing("x") is False
+
+
+def test_headers_are_latin1_safe(monkeypatch):
+    # Regression: an em dash in the Title header crashed every push with a
+    # 'latin-1' codec error. HTTP header values must be Latin-1 encodable.
+    s = notify.get_settings()
+    monkeypatch.setattr(s, "ntfy_topic", "t", raising=False)
+    monkeypatch.setattr(s, "ntfy_internal_url", "http://ntfy", raising=False)
+    captured = {}
+
+    def fake_post(url, data=None, headers=None, timeout=None):
+        captured["headers"] = headers
+        return _Resp()
+
+    monkeypatch.setattr(notify.requests, "post", fake_post)
+    notify.push_briefing("# Briefing — with em dash in body is fine")
+    for key, value in captured["headers"].items():
+        value.encode("latin-1")  # must not raise

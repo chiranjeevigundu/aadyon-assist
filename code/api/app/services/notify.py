@@ -21,7 +21,8 @@ def push_briefing(markdown: str) -> bool:
             url,
             data=markdown.encode("utf-8"),
             headers={
-                "Title": "Aadyon — morning briefing",
+                # HTTP headers must be Latin-1 — keep this ASCII (no em dash).
+                "Title": "Aadyon - morning briefing",
                 "Markdown": "yes",
                 "Tags": "sunrise",
                 "Priority": "default",
