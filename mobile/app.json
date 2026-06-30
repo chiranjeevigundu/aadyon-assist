@@ -10,21 +10,28 @@
       "backgroundColor": "#0b0f17",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "me.aadyon.assist",
+      "buildNumber": "1",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "me.aadyon.assist"
     },
     "extra": {
-      "defaultApiBase": "http://localhost:8000"
+      "defaultApiBase": "http://macminilinuxserver.tailcab499.ts.net:8800",
+      "eas": {
+        "projectId": "b8415cd5-c5eb-4c55-b4ee-7e465fbc41a2"
+      }
     }
   }
 }
