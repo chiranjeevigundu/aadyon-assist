@@ -7,6 +7,16 @@
 }
 *{box-sizing:border-box}
 body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+
+/* iOS standalone (Add to Home Screen): keep content clear of the notch /
+   Dynamic Island and the home indicator. Pairs with viewport-fit=cover
+   (added by base.js) so the env() safe-area insets resolve to real values. */
+body{
+  padding:env(safe-area-inset-top) env(safe-area-inset-right)
+          env(safe-area-inset-bottom) env(safe-area-inset-left);
+  min-height:100vh;
+}
+.toast{bottom:calc(18px + env(safe-area-inset-bottom))}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .muted{color:var(--muted)}
