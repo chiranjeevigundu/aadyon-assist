@@ -17,6 +17,13 @@ body{
   min-height:100vh;
 }
 .toast{bottom:calc(18px + env(safe-area-inset-bottom))}
+
+/* Phones: wide tables scroll inside their card instead of widening the whole
+   page (kills the horizontal scroll on the PWA). Desktop layout is untouched. */
+@media (max-width:760px){
+  table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  img,pre,code{max-width:100%}
+}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .muted{color:var(--muted)}
