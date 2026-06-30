@@ -36,7 +36,17 @@
   /* overall hero */
   .hero{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
   .dims{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:1;min-width:300px}
-  @media(max-width:760px){.dims{grid-template-columns:repeat(2,1fr)}}
+  /* Phones: let .dims shrink to fit (the 300px floor was overflowing the card),
+     and tighten the big-stat layout so nothing runs past the screen edge. */
+  @media(max-width:760px){
+    .dims{grid-template-columns:repeat(2,1fr);min-width:0;flex:1 1 100%}
+  }
+  @media(max-width:520px){
+    .hero{gap:16px}
+    .bigstats{gap:16px 20px}
+    .big .v{font-size:32px}
+    .stats{gap:16px 22px}
+  }
   .dim{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
   .dim .t{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .dim .s{font-size:26px;font-weight:800;line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums}
