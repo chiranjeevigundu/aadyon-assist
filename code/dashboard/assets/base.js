@@ -6,7 +6,14 @@
 // icon. Works over plain http on the tailnet; no app store or Apple account.
 (function installPwaTags(){
   const head = document.head || document.getElementsByTagName('head')[0];
-  if (!head || head.querySelector('link[rel="manifest"]')) return;
+  if (!head) return;
+  // Let content fill the screen edge-to-edge so env(safe-area-inset-*) resolves;
+  // base.css then pads for the notch / home indicator so nothing is clipped.
+  const vp = head.querySelector('meta[name="viewport"]');
+  if (vp && !/viewport-fit/.test(vp.getAttribute('content') || '')) {
+    vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
+  }
+  if (head.querySelector('link[rel="manifest"]')) return;
   const tags = [
     ['link', { rel: 'manifest', href: '/static/manifest.webmanifest' }],
     ['link', { rel: 'apple-touch-icon', href: '/static/assets/icon-180.png' }],
