@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Aadyon Assist",
+    "slug": "aadyon-assist",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "aadyon",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0b0f17",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "me.aadyon.assist",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "package": "me.aadyon.assist"
+    },
+    "extra": {
+      "defaultApiBase": "http://localhost:8000"
+    }
+  }
+}
