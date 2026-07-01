@@ -9,7 +9,7 @@ import json
 from datetime import date
 
 from app.core.config import get_settings
-from app.db.session import query
+from app.db.session import current_user_id, query
 from app.services import routing, tools
 from app.services.llm import chat, LLMError, health
 
@@ -49,9 +49,9 @@ def ask_ceo(goal: str, title: str | None = None) -> dict:
     """Create a top-level goal task assigned to the CEO and queue it."""
     ceo = _ceo()
     rows = query(
-        "INSERT INTO tasks (title, description, kind, agent_id, status, created_by) "
-        "VALUES (%s,%s,'goal',%s,'queued','user') RETURNING *",
-        (title or goal[:120], goal, ceo["id"] if ceo else None),
+        "INSERT INTO tasks (user_id, title, description, kind, agent_id, status, created_by) "
+        "VALUES (%s,%s,%s,'goal',%s,'queued','user') RETURNING *",
+        (current_user_id(), title or goal[:120], goal, ceo["id"] if ceo else None),
         commit=True,
     )
     return rows[0]
@@ -76,9 +76,9 @@ def set_status(task_id, status: str, result: str | None = None):
 # --------------------------------------------------------------------------- the engine
 def _log(task_id, agent_id, step, provider, model, role, content, tool_name=None, tokens=0):
     query(
-        "INSERT INTO agent_runs (task_id, agent_id, step, provider, model, role, "
-        "tool_name, content, tokens) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-        (task_id, agent_id, step, provider, model, role, tool_name,
+        "INSERT INTO agent_runs (user_id, task_id, agent_id, step, provider, model, role, "
+        "tool_name, content, tokens) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (current_user_id(), task_id, agent_id, step, provider, model, role, tool_name,
          (content or "")[:_CONTENT_CAP], tokens), commit=True,
     )
 

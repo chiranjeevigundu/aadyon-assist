@@ -33,7 +33,8 @@ def test_create_drops_unknown_fields(monkeypatch):
     assert out["name"] == "x"
     insert = next(c for c in fake.calls if c[0].strip().startswith("INSERT"))
     assert "secret" not in insert[0]          # not in the SQL
-    assert len(insert[1]) == 2                # only name + color bound
+    assert "user_id" in insert[0]             # owner injected server-side (multi-user)
+    assert len(insert[1]) == 3                # name + color + user_id bound
 
 
 def test_create_with_no_valid_fields_400(monkeypatch):

@@ -42,7 +42,9 @@ def test_propose_action_queues_for_approval(monkeypatch):
     patch_query(monkeypatch, "app.services.tools", [[{"id": "prop-3"}]])
     out = tools.dispatch("propose_action", {"title": "pay card", "detail": "$50"},
                          {"task_id": "t", "team_id": "tm"})
-    assert out == {"proposal_id": "prop-3", "status": "awaiting_approval"}
+    assert out["proposal_id"] == "prop-3"
+    assert out["status"] == "awaiting_approval"
+    assert "note" in out  # external side effects are queued, never executed
 
 
 def test_unknown_tool():

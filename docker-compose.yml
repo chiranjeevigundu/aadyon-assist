@@ -28,6 +28,7 @@ services:
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
       - db_password
+      - jwt_secret            # signing key for multi-user auth tokens
     volumes:
       - ./artifacts:/srv/artifacts
     extra_hosts:
@@ -136,3 +137,5 @@ volumes:
 secrets:
   db_password:
     file: ./secrets/db_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt

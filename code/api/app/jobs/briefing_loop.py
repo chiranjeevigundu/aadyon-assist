@@ -7,21 +7,30 @@ import time
 from datetime import date, datetime
 
 from app.core.config import get_settings
+from app.db.session import active_user_ids, set_current_user
 from app.services.briefing import build_briefing
 from app.services.notify import push_briefing
 
 
 def _write_today() -> str:
+    """Write a briefing per active user (RLS-scoped). Files are suffixed with a
+    short user id; the global briefing-latest.md points at the first user's for
+    backward-compat. (Per-user push topics are a Phase-5 item.)"""
     s = get_settings()
     s.artifacts_dir.mkdir(parents=True, exist_ok=True)
-    md = build_briefing()
-    path = s.artifacts_dir / f"briefing-{date.today():%Y-%m-%d}.md"
-    path.write_text(md, encoding="utf-8")
-    # Stable pointer to the latest one.
-    (s.artifacts_dir / "briefing-latest.md").write_text(md, encoding="utf-8")
-    # Push to the phone (no-op if NTFY_TOPIC is unset).
-    push_briefing(md)
-    return str(path)
+    today = f"{date.today():%Y-%m-%d}"
+    written = []
+    for i, uid in enumerate(active_user_ids()):
+        set_current_user(uid)
+        md = build_briefing()
+        short = uid[:8]
+        (s.artifacts_dir / f"briefing-{today}-{short}.md").write_text(md, encoding="utf-8")
+        (s.artifacts_dir / f"briefing-latest-{short}.md").write_text(md, encoding="utf-8")
+        if i == 0:
+            (s.artifacts_dir / "briefing-latest.md").write_text(md, encoding="utf-8")
+        push_briefing(md)  # no-op if NTFY_TOPIC unset
+        written.append(short)
+    return f"{len(written)} briefing(s): {', '.join(written) or 'none'}"
 
 
 def main() -> None:

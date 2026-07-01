@@ -14,6 +14,11 @@ Usage:
 Note: /api/digital-me and /api/summary include date-derived values (days alive,
 as-of date), so they shift day to day. Re-baseline on the same day you compare,
 or pass --endpoints to limit the check to stable ones (e.g. /api/entities).
+
+Multi-user: the API now requires a bearer token, and the data endpoints are
+per-user. Pass --token <jwt> (from POST /api/auth/login for a fixed "verify" user)
+and re-baseline against that same user. Parity now means "untouched endpoints are
+unchanged for a fixed authenticated user."
 """
 import argparse
 import hashlib
@@ -35,8 +40,11 @@ def _stable(value) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
 
-def _fetch(base: str, path: str) -> dict:
-    with urllib.request.urlopen(base.rstrip("/") + path, timeout=30) as r:
+def _fetch(base: str, path: str, token: str | None = None) -> dict:
+    req = urllib.request.Request(base.rstrip("/") + path)
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=30) as r:
         body = json.loads(r.read().decode("utf-8"))
     digest = hashlib.sha256(_stable(body).encode("utf-8")).hexdigest()[:16]
     n = len(body) if isinstance(body, (list, dict)) else 1
@@ -49,12 +57,13 @@ def main() -> int:
     ap.add_argument("--baseline", default=DEFAULT_BASELINE, help="baseline JSON path")
     ap.add_argument("--save", action="store_true", help="save current responses as the baseline")
     ap.add_argument("--endpoints", nargs="*", default=DEFAULT_ENDPOINTS, help="paths to check")
+    ap.add_argument("--token", default=None, help="JWT bearer token for a fixed verify user")
     args = ap.parse_args()
 
     current = {}
     for path in args.endpoints:
         try:
-            current[path] = _fetch(args.base, path)
+            current[path] = _fetch(args.base, path, args.token)
         except Exception as e:  # noqa: BLE001
             print(f"FAIL  {path}: {e}")
             return 2

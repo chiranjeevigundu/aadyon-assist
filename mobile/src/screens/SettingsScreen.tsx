@@ -1,18 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { Screen, Card, styles as ui } from "../components";
-import { getApiBase, setApiBase, api, ApiError } from "../api";
+import { Screen, Card } from "../components";
+import { getApiBase, setApiBase, api, ApiError, clearToken, User } from "../api";
 import { theme } from "../theme";
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) {
   const [base, setBase] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [ok, setOk] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     getApiBase().then(setBase);
+    api.me().then(setUser).catch(() => setUser(null));
   }, []);
+
+  async function logout() {
+    await clearToken();
+    onLogout?.();
+  }
 
   async function save() {
     await setApiBase(base);
@@ -38,6 +45,14 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
+      <Card title="Account">
+        <Text style={s.acctName}>{user?.display_name || user?.email || "Signed in"}</Text>
+        {user?.email ? <Text style={s.hint}>{user.email}</Text> : null}
+        <TouchableOpacity style={[s.btn, s.btnGhost, { marginTop: 14 }]} onPress={logout}>
+          <Text style={s.btnGhostText}>Log out</Text>
+        </TouchableOpacity>
+      </Card>
+
       <Card title="Backend connection">
         <Text style={s.label}>API base URL</Text>
         <TextInput
@@ -73,8 +88,9 @@ export default function SettingsScreen() {
 
       <Card title="About">
         <Text style={s.hint}>
-          Aadyon Assist — native client for your self-hosted life-ops backend. Read-mostly: money,
-          email, and filings never auto-execute. Approvals stay human-in-the-loop on the web console.
+          Aadyon Assist — your personal life-ops assistant. The Assistant tab can read and directly
+          update your own data. Anything with a real-world side effect (money, email, filings) is
+          queued as a proposal for your approval and never auto-executes.
         </Text>
       </Card>
     </Screen>
@@ -82,6 +98,7 @@ export default function SettingsScreen() {
 }
 
 const s = StyleSheet.create({
+  acctName: { color: theme.text, fontSize: 16, fontWeight: "700" },
   label: { color: theme.textDim, fontSize: 12, marginBottom: 6 },
   input: {
     backgroundColor: theme.cardAlt,
