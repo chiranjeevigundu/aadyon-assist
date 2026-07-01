@@ -78,7 +78,7 @@ jobs:
             sleep 3
           done
           echo "API did not become healthy in time"; docker compose logs api; exit 1
-      - name: Hit key endpoints (multi-user: sign up, then use the token)
+      - name: "Hit key endpoints (multi-user: sign up, then use the token)"
         run: |
           set -e
           B=http://localhost:8000
