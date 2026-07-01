@@ -282,8 +282,21 @@ Every table has DB-managed `id` (UUID), `created_at`, and `updated_at`.
 
 **Pages** — `GET /` (Digital Me), `/tracker`, `/data`, `/agency`, `/accounts`, `/static/*`.
 
+All `/api/*` routes below require an `Authorization: Bearer <jwt>` header **except** `/api/health`
+and `/api/auth/*`. Data is scoped to the token's user by RLS.
+
+**Auth**
+- `POST /api/auth/signup` (`{email, password, display_name}`) → `{token, user}`; seeds the user's org.
+- `POST /api/auth/login` (`{email, password}`) → `{token, user}`.
+- `GET /api/auth/me` → the current user.
+
+**Assistant (Jarvis)**
+- `POST /api/assistant/chat` (`{message, conversation_id?}`) → `{conversation_id, reply, actions, proposals}`.
+- `POST /api/assistant/chat/stream` — SSE variant (streamed reply + terminal actions/proposals).
+- `GET/POST /api/assistant/conversations` · `GET /api/assistant/conversations/{id}/messages`.
+
 **System**
-- `GET /api/health` — DB liveness (`ok` / `degraded`).
+- `GET /api/health` — DB liveness (`ok` / `degraded`), public.
 - `GET /api/summary` — full tracker payload in one response.
 - `GET /api/digital-me` — identity + life track + four dimension scores.
 - `GET /api/entities` — per-entity column metadata (types, required, FKs) from `information_schema`.
@@ -306,12 +319,20 @@ Every table has DB-managed `id` (UUID), `created_at`, and `updated_at`.
 
 ## 8. Security model
 
-- **No application auth → network isolation.** The API is unauthenticated by design, so it is only
-  ever reachable on the private **Tailscale** tailnet (Mini-A at `100.124.146.89:8800`). Do **not**
-  expose it publicly and do **not** run `tailscale funnel`.
-- **Secrets via Docker secrets.** `db_password`, `openrouter_api_key`, and the email Fernet key
-  (`email_key`) are mounted from `secrets/` (preferred) with env-var fallback for local dev. Config
-  reads secret files first, env second.
+- **Multi-user auth + database isolation.** The API requires a **JWT bearer token** (obtained from
+  `POST /api/auth/login` or `/signup`; signed with the `jwt_secret` Docker secret). Every per-user
+  table is isolated by **Postgres Row-Level Security**: the `get_current_user` dependency sets the
+  request's user id on `app.current_user_id`, and each policy filters rows by it (fail-closed — an
+  unset user sees zero rows). `/api/health` and `/api/auth/*` are the only public routes. Tailscale
+  remains a strong second layer, but auth+RLS is the isolation contract, so cautious public exposure
+  is possible. `db/session.py` sets the GUC per transaction (transaction-local, cleared each query);
+  `query_unscoped()` is reserved for the non-RLS `users` table and global `model_routes`.
+- **Action boundary.** The assistant writes the user's *own* records directly (create/update/delete
+  deadlines, bills, debts, subscriptions, milestones, profile). External side effects — money, email,
+  filings — still route through `propose_action` → `awaiting_approval` for explicit human sign-off.
+- **Secrets via Docker secrets.** `db_password`, `jwt_secret`, `openrouter_api_key`, and the email
+  Fernet key (`email_key`) are mounted from `secrets/` (preferred) with env-var fallback for local
+  dev. Config reads secret files first, env second.
 - **Email credentials encrypted at rest.** IMAP app-passwords and Graph refresh tokens are stored
   in `email_accounts.secret_enc`, encrypted with Fernet (`crypto.py`). Plaintext is held only
   transiently in memory during a sync.

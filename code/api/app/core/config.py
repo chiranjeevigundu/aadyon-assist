@@ -49,6 +49,14 @@ class Settings:
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
         self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 
+        # --- Auth (multi-user): JWT bearer tokens for the mobile app / API ---
+        # Secret file (Docker secret) takes precedence over the env var, mirroring
+        # db_password / email_enc_key. Empty secret => auth cannot mint/verify tokens.
+        self.jwt_secret_file = os.getenv("JWT_SECRET_FILE", "/run/secrets/jwt_secret")
+        self.jwt_alg = os.getenv("JWT_ALG", "HS256")
+        # 30 days by default — mobile clients stay logged in between sessions.
+        self.jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 30)))
+
         # The background agency worker that drains the task queue.
         self.agency_worker_enabled = os.getenv("AGENCY_WORKER_ENABLED", "true").lower() == "true"
         self.agent_max_steps = int(os.getenv("AGENT_MAX_STEPS", "6"))
@@ -82,6 +90,14 @@ class Settings:
             with open(self.email_key_file) as f:
                 return f.read().strip()
         return os.getenv("EMAIL_ENC_KEY", "").strip()
+
+    @property
+    def jwt_secret(self) -> str:
+        """Signing secret for auth tokens (Docker secret file or env)."""
+        if os.path.exists(self.jwt_secret_file):
+            with open(self.jwt_secret_file) as f:
+                return f.read().strip()
+        return os.getenv("JWT_SECRET", "").strip()
 
 
 @lru_cache

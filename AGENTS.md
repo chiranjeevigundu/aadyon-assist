@@ -17,13 +17,21 @@ always-on "Mini-A" server and is reached over Tailscale.
 1. **Never commit personal, financial, or immigration data.** Seed data, DB dumps, `artifacts/`,
    and `documents/` are gitignored — keep them that way. CI's `guard` job fails the build if it
    finds known personal strings. When adding examples, use placeholders.
-2. **Never weaken the human-in-the-loop boundary.** Email sync and agents may *read* and
-   *propose* only. Nothing may auto-execute a payment, email, filing, or destructive action.
-   Side-effecting agent actions go through `propose_action` → `awaiting_approval`.
-3. **Keep the app private.** The API has no auth by design; it must stay on the Tailscale tailnet.
-   Do not add public exposure, and do not run `tailscale funnel`.
-4. **Secrets come from Docker secrets**, not committed env values. Read order is always *secret
-   file → env var* (see `core/config.py`).
+2. **Never weaken the human-in-the-loop boundary for external side effects.** The personal
+   assistant may directly create/update/delete the signed-in user's *own* records (deadlines,
+   bills, debts, subscriptions, milestones, profile) — that's authorized self-data editing.
+   But anything with a real-world **external** effect — a payment, sending email, a filing, a
+   destructive action — must still go through `propose_action` → `awaiting_approval`. Email sync
+   remains read-and-propose only.
+3. **Multi-user: auth + RLS, with Tailscale as defense-in-depth.** The API now requires a JWT
+   bearer token; every per-user table is isolated by Postgres Row-Level Security (the request's
+   user is set on `app.current_user_id`; see `db/session.py`). `/api/health` and `/api/auth/*`
+   are the only public routes. Keep the app on the tailnet where practical, but auth+RLS is the
+   isolation contract now — never bypass it (no unscoped `query()` on per-user tables, always
+   `FORCE ROW LEVEL SECURITY`). Do not run `tailscale funnel` casually.
+4. **Secrets come from Docker secrets**, not committed env values (`db_password`, `jwt_secret`,
+   `openrouter_api_key`, `email_key`). Read order is always *secret file → env var* (see
+   `core/config.py`). Create `secrets/jwt_secret.txt` before `docker compose up`.
 5. **If you add a third-party import, add it to `code/api/requirements.txt`** (pinned). A clean
    `docker compose build --no-cache` must succeed.
 6. **Verify before declaring done.** Run the verify loop (below). For refactors that shouldn't
@@ -36,11 +44,11 @@ always-on "Mini-A" server and is reached over Tailscale.
 ```
 code/api/app/      FastAPI app — see SYSTEM.md §4 for the full module breakdown
   core/config.py     all settings (DB, secrets, model routing, email, ntfy)
-  db/session.py      pooled query() helper
+  db/session.py      pooled query() helper — RLS-scoped by current_user; query_unscoped for auth
   models/tables.py   Entity registry — the list of CRUD tables + writable columns
-  routers/           system, crud (factory), agency, email, dashboard
-  services/          digital_me/dimensions/common, summary, routing/llm/tools/agency,
-                     crypto, email_* (extract/store/imap/graph/ingest), ms_graph, notify
+  routers/           system, auth, crud (factory), agency, email, assistant, dashboard
+  services/          digital_me/dimensions/common, summary, routing/llm/tools/agency, assistant,
+                     auth, crypto, email_* (extract/store/imap/graph/ingest), ms_graph, notify
   jobs/              briefing_loop, agency_loop, import_entities (each its own container)
 code/db/init/      SQL migrations 01..09 (run only on first boot of an empty volume)
 code/dashboard/    vanilla HTML/JS pages + assets/ (base.css, base.js)
@@ -81,7 +89,11 @@ personal-data `guard`, `pytest`, and a Docker build + endpoint smoke test.
 1. Create a migration with a **timestamped** name (never a sequential `NN_` number — those
    collide when agents work in parallel): run `scripts/new-migration.sh add_widget_table`, which
    writes `code/db/init/<YYYYMMDDHHMM>_add_widget_table.sql`. Include `id uuid`, `created_at`,
-   `updated_at` like the existing tables.
+   `updated_at` like the existing tables. **If it holds per-user data**, also add
+   `user_id uuid NOT NULL REFERENCES users(id)`, an index, and the RLS policy — copy the pattern
+   from `202607010711_multiuser_auth.sql` (`ENABLE`+`FORCE ROW LEVEL SECURITY` + the
+   `current_setting('app.current_user_id')` policy). The generic CRUD injects `user_id` on create
+   automatically (non-per-user/global tables go in `crud.GLOBAL_TABLES`).
 2. Register it in `code/api/app/models/tables.py` as an `Entity(table, [writable columns], order_by)`.
    That alone generates full CRUD endpoints and a typed admin form — no router code needed.
 3. Apply it: on a fresh volume it auto-runs; on an existing DB run it manually (see §Gotchas).

@@ -12,7 +12,7 @@ The implementation is split across cohesive modules:
   email_graph   — Microsoft Graph (Outlook/365) sync path
 """
 from app.core.config import get_settings
-from app.db.session import query
+from app.db.session import active_user_ids, query, set_current_user
 from app.services.email_graph import sync_graph
 from app.services.email_imap import sync_imap, test_login  # noqa: F401 (re-export)
 from app.services.email_store import approve_extraction     # noqa: F401 (re-export)
@@ -35,10 +35,15 @@ def sync_account(account_id: str) -> dict:
 
 
 def sync_all() -> dict:
-    accts = query("SELECT id FROM email_accounts WHERE active AND secret_enc IS NOT NULL")
-    total = {"accounts": 0, "queued": 0}
-    for a in accts:
-        r = sync_account(a["id"])
-        total["accounts"] += 1
-        total["queued"] += r.get("queued", 0)
+    """Sync every active user's connected mailboxes. Sets the per-user RLS context
+    before touching each user's accounts so isolation holds in the background job."""
+    total = {"users": 0, "accounts": 0, "queued": 0}
+    for uid in active_user_ids():
+        set_current_user(uid)
+        total["users"] += 1
+        accts = query("SELECT id FROM email_accounts WHERE active AND secret_enc IS NOT NULL")
+        for a in accts:
+            r = sync_account(a["id"])
+            total["accounts"] += 1
+            total["queued"] += r.get("queued", 0)
     return total

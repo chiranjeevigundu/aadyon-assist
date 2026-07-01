@@ -31,9 +31,12 @@ def test_dispatch_to_imap(monkeypatch):
 
 
 def test_sync_all_aggregates(monkeypatch):
+    # Multi-user: sync_all iterates active users and scopes each before querying.
+    monkeypatch.setattr(email_ingest, "active_user_ids", lambda: ["u1"])
+    monkeypatch.setattr(email_ingest, "set_current_user", lambda uid: None)
     patch_query(monkeypatch, "app.services.email_ingest",
                 [[{"id": "a"}, {"id": "b"}]])
     monkeypatch.setattr(email_ingest, "sync_account",
                         lambda aid: {"queued": 2})
     out = email_ingest.sync_all()
-    assert out == {"accounts": 2, "queued": 4}
+    assert out == {"users": 1, "accounts": 2, "queued": 4}

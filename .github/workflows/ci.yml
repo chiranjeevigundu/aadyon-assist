@@ -37,6 +37,7 @@ jobs:
       - name: Validate docker-compose
         run: |
           mkdir -p secrets && printf 'ci' > secrets/db_password.txt
+          printf 'ci' > secrets/jwt_secret.txt
           printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
           docker compose config -q
           echo "compose config valid"
@@ -62,9 +63,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create throwaway env + secret (no real data)
+      - name: Create throwaway env + secrets (no real data)
         run: |
-          mkdir -p secrets && printf 'ci-test-password' > secrets/db_password.txt
+          mkdir -p secrets
+          printf 'ci-test-password' > secrets/db_password.txt
+          printf 'ci-test-jwt-secret' > secrets/jwt_secret.txt
           printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
       - name: Build & start db + api
         run: docker compose up -d --build db api
@@ -75,18 +78,30 @@ jobs:
             sleep 3
           done
           echo "API did not become healthy in time"; docker compose logs api; exit 1
-      - name: Hit key endpoints
+      - name: Hit key endpoints (multi-user: sign up, then use the token)
         run: |
           set -e
-          curl -fsS http://localhost:8000/api/health | grep -q '"db":"up"'
-          curl -fsS http://localhost:8000/api/digital-me  >/dev/null
-          curl -fsS http://localhost:8000/api/entities    >/dev/null
-          curl -fsS http://localhost:8000/api/agency/org   | grep -q 'Aadyon CEO'
-          curl -fsS http://localhost:8000/api/agency/health >/dev/null
-          curl -fsS http://localhost:8000/api/summary      >/dev/null
-          curl -fsS "http://localhost:8000/api/email/extractions?status=pending" >/dev/null
-          curl -fsS http://localhost:8000/api/deadlines    >/dev/null
-          curl -fsS http://localhost:8000/api/briefing     >/dev/null
+          B=http://localhost:8000
+          # health is public
+          curl -fsS "$B/api/health" | grep -q '"db":"up"'
+          # unauthenticated data access must be rejected
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/summary")
+          [ "$code" = "401" ] || { echo "expected 401 for unauth, got $code"; exit 1; }
+          # sign up a throwaway user; the account gets its own seeded org
+          TOKEN=$(curl -fsS -X POST "$B/api/auth/signup" -H 'Content-Type: application/json' \
+            -d '{"email":"ci@example.com","password":"ci-password-123","display_name":"CI"}' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
+          [ -n "$TOKEN" ] || { echo "no token from signup"; exit 1; }
+          AUTH="Authorization: Bearer $TOKEN"
+          curl -fsS -H "$AUTH" "$B/api/digital-me"  >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/entities"    >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/agency/org"   | grep -q 'Aadyon CEO'
+          curl -fsS -H "$AUTH" "$B/api/agency/health" >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/summary"      >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/email/extractions?status=pending" >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/deadlines"    >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/briefing"     >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/assistant/conversations" >/dev/null
           echo "Smoke test passed."
       - name: Dump logs on failure
         if: failure()

@@ -1,17 +1,21 @@
 # Aadyon Assist — iPhone app
 
-A native (Expo / React Native) client for the self-hosted Aadyon Assist backend. It reads the
-same Postgres-backed API the dashboards use and renders four tabs:
+A native (Expo / React Native) client for the self-hosted Aadyon Assist backend. You **log in**
+(multi-user; JWT stored on-device), then get five tabs:
 
+- **Assistant** — a chat "Jarvis" that reads your Digital Me and can **directly update your own
+  records** (deadlines, bills, debts, subscriptions, milestones, profile) via natural language.
+  Talks to `POST /api/assistant/chat`.
 - **Digital Me** — overall + four life-dimension scores (financial, visa, career, goal), each with
   its auditable sub-components, plus the life-since-birth track.
 - **Tracker** — debt totals, deadlines, bills, subscriptions, recent shifts (`GET /api/summary`).
-- **Agency** — read-only view of the agentic org, model-routing health, and any tasks awaiting
-  your approval.
-- **Settings** — set the API base URL (your Tailscale host) and test the connection.
+- **Agency** — view of the agentic org, model-routing health, and any tasks awaiting your approval.
+- **Settings** — your account (log out), the API base URL, and a connection test.
 
-It is **read-mostly by design.** No money, email, or filing action is ever triggered from the app
-— approvals stay human-in-the-loop on the web console (`/agency`), matching golden rule #2.
+**Action boundary:** the assistant edits *your own data* directly, but anything with a real-world
+side effect — money, email, filings — comes back as a **proposal you approve** (never
+auto-executed), matching golden rule #2. On first launch, create an account or sign in; the token
+is sent as `Authorization: Bearer` on every request and cleared on logout or a 401.
 
 ## Run it (development, via Expo Go)
 
@@ -78,18 +82,21 @@ eas build -p ios --profile preview   # requires an Expo account; sideload or Tes
 
 ```
 mobile/
-  App.tsx                 tab navigation
+  App.tsx                 auth gate + tab navigation
   app.json                Expo config (name, icon bg, iOS ATS)
   src/
-    api.ts                fetch client + persisted base URL
+    api.ts                fetch client + persisted base URL + JWT token + auth/assistant calls
     theme.ts              dark "console" palette + score colours
     components.tsx        Card / Row / ScoreBadge / Screen / Loading / Error
     screens/
+      LoginScreen.tsx     sign in / sign up
+      AssistantScreen.tsx chat with Jarvis (reads + writes your data)
       DigitalMeScreen.tsx
       TrackerScreen.tsx
       AgencyScreen.tsx
-      SettingsScreen.tsx
+      SettingsScreen.tsx  account + API URL + log out
 ```
 
-Endpoints used: `/api/health`, `/api/digital-me`, `/api/summary`, `/api/agency/org`,
-`/api/agency/health`, `/api/agency/tasks`. All GET; nothing here writes.
+Endpoints used: `POST /api/auth/{signup,login}`, `GET /api/auth/me`, `POST /api/assistant/chat`,
+`/api/health`, `/api/digital-me`, `/api/summary`, `/api/agency/*`. Every request carries the
+bearer token; a 401 drops you back to the login screen.

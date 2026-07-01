@@ -8,6 +8,18 @@ the eventual agentic "life ops" platform will run on (Postgres + pgvector, Docke
 > Building software is not the priority — the visa filing and income are. This tool just
 > gets the mental load out of your head; it doesn't change the numbers.
 
+## Jarvis assistant (multi-user)
+The app is now **multi-user** with a conversational assistant. Sign up / log in from the
+iPhone app (`mobile/`); every account is isolated at the database by Postgres Row-Level
+Security. The **Assistant** tab is a chat that reads your Digital Me and can **directly update
+your own records** ("add a deadline to renew my passport next month", "mark the Netflix
+subscription inactive"). Anything with a real-world side effect (money, email, filings) comes
+back as a **proposal you approve** — it never auto-executes. API auth is a JWT bearer token
+(`POST /api/auth/login`); `/api/health` and `/api/auth/*` are the only public routes.
+
+> Web dashboards (`/`, `/tracker`, …) are a follow-up for the new auth — the iPhone app is the
+> primary client for the assistant in this phase.
+
 ## Digital Me
 The front door (`http://localhost:8000`) is now a **Digital Me** view: a single living
 model of you built from the same data. It has two layers:
@@ -111,12 +123,14 @@ aadyon-assist/
 ```
 
 ## Run it
-1. Copy env + create the DB secret:
+1. Copy env + create the secrets:
    ```bash
    cp .env.example .env
    mkdir -p secrets
-   # pick a strong password:
+   # pick a strong DB password:
    printf 'change-me-strong-password' > secrets/db_password.txt
+   # signing key for login tokens (multi-user auth):
+   python -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
    ```
 2. Start:
    ```bash
