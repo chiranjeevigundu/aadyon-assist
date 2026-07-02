@@ -46,7 +46,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   the `Entity` registry in `models/tables.py` so bad payloads 422 instead of 500; then widen the
   CI Schemathesis step beyond `--include-method GET` (see comment in `.github/workflows/ci.yml`).
   Accept: fuzzed writes never 5xx; existing CRUD tests updated; Schemathesis fuzzes writes in CI.
-- [ ] **P2b — Drive connector** (read-only listing → feeds P3): same connector template;
+- [x] **P2b — Drive connector** (read-only listing → feeds P3): same connector template;
   OAuth like calendar. Accept: file list synced per user, RLS-scoped.
 - [ ] **P2c — Banking connector (strict propose-only)**: API key in `secret_enc`;
   transactions → review queue; assistant `get_transactions` read tool. Money movement is
