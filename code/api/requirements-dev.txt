@@ -1,0 +1,6 @@
+# Development / CI tooling — runtime deps live in requirements.txt.
+-r requirements.txt
+pytest==8.2.2
+ruff==0.4.10
+pre-commit==3.7.1
+schemathesis==4.22.2

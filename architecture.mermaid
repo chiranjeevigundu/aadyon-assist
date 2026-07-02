@@ -1,0 +1,27 @@
+flowchart TD
+  you([You]) -->|browser, over Tailscale| dash["Dashboards<br/>Digital Me · Tracker · Data · Agency · Accounts"]
+  you -->|morning push| phone([iPhone / ntfy app])
+
+  subgraph host["Your always-on server (Docker Compose)"]
+    dash --> api["api — FastAPI<br/>REST + dashboards (healthchecked)"]
+    api --> db[("db — Postgres 16 + pgvector<br/>(healthchecked)")]
+    briefing["briefing — daily worker<br/>writes briefing-*.md"] --> db
+    agency["agency — agent queue worker<br/>CEO → teams"] --> db
+    backup["backup — nightly pg_dump<br/>14-day retention"] --> db
+    ntfy["ntfy — self-hosted push"]
+    briefing --> ntfy
+    backup --> dumps[/"data/exports/*.sql"/]
+  end
+
+  ntfy -->|Tailscale (content stays on tailnet)| phone
+  api -->|read-only| mail[/"IMAP (iCloud, Gmail)<br/>Microsoft Graph (Outlook/365)"/]
+  mail -->|LLM extract → review queue| db
+  agency -->|routed inference| models[/"OpenRouter (cloud, multi-provider)<br/>Ollama (local tier)"/]
+  api --> models
+
+  secret[["secrets/ (Docker secrets)<br/>db_password · jwt_secret · openrouter_api_key · email_key"]] -.-> db
+  secret -.-> api
+  secret -.-> agency
+
+  laptop["Dev machine<br/>localhost:8000"] -->|git push + PR| gh[("GitHub repo + Actions<br/>CI: ruff · gitleaks · smoke · schemathesis")]
+  gh -->|git pull --ff-only + just up| host

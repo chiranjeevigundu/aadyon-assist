@@ -1,0 +1,40 @@
+# Secrets & env
+.env
+secrets/
+*.secret
+tailscale-status.txt
+
+# Sensitive personal documents (immigration PDFs, offers, I-983, etc.)
+documents/
+artifacts/
+notes/
+
+# Real personal seed data (kept local; commit code/db/seed.example.sql instead).
+# Lives in code/db/seed/ and is applied with `just seed`, never as a migration.
+code/db/seed/
+code/db/init/02_seed.sql
+code/db/init/99_seed_local.sql
+code/db/migrations/02_seed.sql
+code/db/migrations/99_seed_local.sql
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+
+# DB volumes / dumps (contain real personal/financial data — never commit)
+data/
+*.dump
+*.sql.bak
+aadyon_dump.sql
+/*.sql            # any DB dump dropped in the repo root
+
+# OS
+.DS_Store
+Thumbs.db
