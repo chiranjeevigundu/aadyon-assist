@@ -103,6 +103,18 @@ ENTITIES: list[Entity] = [
          "web_view_link": str, "size_bytes": int, "status": str},
         order_by="updated_at DESC",
     ),
+    # --- Bank accounts & transactions ---
+    Entity(
+        "bank_accounts",
+        {"institution": str, "status": str, "active": bool},
+        order_by="institution ASC",
+    ),
+    Entity(
+        "bank_transactions",
+        {"account_id": UUID, "transaction_id": str, "date": date, "amount": float,
+         "merchant": str, "category": str, "status": str},
+        order_by="date DESC",
+    ),
     # --- Agentic org layer ---
     Entity(
         "teams",
