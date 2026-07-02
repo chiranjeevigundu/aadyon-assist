@@ -8,26 +8,49 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Current state
+## Current state (full brief — written for a cold start)
 
-- **Branch:** `feat/voice` (PR open) — P5 Voice: `mobile/src/voice.ts` (lazy-loaded
-  expo-speech TTS + expo-speech-recognition STT, degrades gracefully in Expo Go), mic button +
-  speak-replies toggle in AssistantScreen, iOS mic/speech permissions + config plugin in
-  app.json. Voice needs a dev/EAS build (`eas build`), not Expo Go. Also fixes a pre-existing
-  tsc error in mobile/src/api.ts. `npm run typecheck` clean.
-- **Previously merged:** `feat/proactive-alerts` (PR #24) — P5 proactive intelligence: `users.ntfy_topic`
-  migration, `services/alerts.py` (deadline/bill windowing read-model), generic
-  `notify.push_message` with per-user topics, briefing worker pushes an alert digest after each
-  user's briefing, `GET /api/alerts`, `PATCH /api/auth/me` (set display_name / ntfy_topic).
-- **`main` is GREEN** (first time) — the CI fixes (`register_uuid`, NUL-byte 422 mapping,
-  NUL-in-query middleware) merged via PR #23.
-- **Verified this session:** `pytest` 146 passed · `ruff check .` clean. CI on the PR is the
-  smoke gate.
+**The original ROADMAP build-out is COMPLETE** once `feat/voice` (open PR) merges.
+What exists on `main` + that PR, all verified by CI (ruff, gitleaks, pytest, Docker smoke +
+full-surface Schemathesis fuzz):
 
-## Next up
+- **Platform:** multi-user FastAPI + Postgres 16 (RLS isolation via `app.current_user_id` GUC,
+  set in `db/session.py`; JWT auth in `routers/auth.py`; signup seeds a per-user agent org).
+- **Jarvis assistant:** `services/assistant.py` + `routers/assistant.py` (sync + SSE streaming);
+  write tools edit the user's own records; external side effects go through `propose_action`
+  approval (golden rule #2). LLM via LiteLLM (`services/llm.py`, frozen `chat()` surface).
+- **Connectors:** email (IMAP/Graph), calendar, drive, banking (propose-only) — all follow the
+  `<x>_accounts` + `<x>_extractions` + `services/<x>_ingest.py` + `routers/<x>.py` template,
+  Fernet-encrypted secrets, review queues.
+- **Documents (P3):** upload → pypdf/vision extraction → review queue; **Cloud storage (P4):**
+  boto3/S3 (`services/storage.py`, CI-mocked when key=="ci"), backup_sync job.
+- **Proactive alerts (P5):** `services/alerts.py` (deadlines/bills, ALERT_DAYS window),
+  per-user `users.ntfy_topic` (set via `PATCH /api/auth/me`), digest pushed after each briefing;
+  `GET /api/alerts`.
+- **Voice (P5, in the open `feat/voice` PR):** `mobile/src/voice.ts` (lazy expo-speech TTS +
+  expo-speech-recognition STT), mic + speak-replies in AssistantScreen, iOS permissions/plugin
+  in app.json. Requires an EAS dev/preview build (not Expo Go). Mobile `npm run typecheck` clean.
+- **Clients:** Expo iPhone app (login, chat+voice, Digital Me, tracker, agency, settings) and
+  vanilla-JS web dashboards with token login (`dashboard/assets/base.js` fetchApi).
+- **Toolchain:** justfile (`just --list`), yoyo migrations (`just new-migration`, ledger in
+  `_yoyo_*`), pre-commit (ruff+gitleaks), pyproject config, MIT license.
 
-- Merge `feat/voice` when CI is green — that completes the original ROADMAP build-out.
-- Remaining chores: dashboard-JS extraction (Later section) and the owner-only ops box.
+**How to verify anything:** `just test` (DB-free pytest, currently 146), `just lint`,
+`docker compose up -d --build --wait db migrate api` + the CI smoke curl script; CI is the
+authority for smoke/fuzz (cloud sessions have no Docker).
+
+**Owner-pending (not agent work):** merge `feat/voice`; `eas init` + `eas build -p ios` to put
+the app on the iPhone; then revoke the exposed `ghp_` tokens; GitHub GC ticket (pre-squash
+SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
+
+## Next up (in order)
+
+1. Merge `feat/voice` when CI is green (docs+mobile only; backend untouched).
+2. **Dashboard-JS extraction** (ROADMAP Later): move inline `<script>` blocks to linted `.js`
+   assets, replace the node-vm CI check with Biome/ESLint.
+3. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
+   top-down. Follow the session start/end rituals in AGENTS.md — pull main, green `just test`
+   baseline before changes, finish with a PR + this file updated in the same PR.
 
 ## Known constraints for whoever picks this up
 
