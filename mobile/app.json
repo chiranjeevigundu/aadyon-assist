@@ -40,9 +40,6 @@
     ],
     "extra": {
       "defaultApiBase": "http://localhost:8000"
-    },
-    "plugins": [
-      "expo-speech-recognition"
-    ]
+    }
   }
 }
