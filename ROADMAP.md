@@ -64,7 +64,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   (deadline within N days, low balance from P2c) pushed via `services/notify.py`.
 - [x] **P5 — Voice**: Expo STT (`expo-speech-recognition` or `@react-native-voice/voice`) →
   `/api/assistant/chat`; TTS via `expo-speech`. Thin client layer; no backend change.
-- [ ] **Dashboard JS extraction**: move inline `<script>` blocks into linted `.js` assets and
+- [x] **Dashboard JS extraction**: move inline `<script>` blocks into linted `.js` assets and
   replace the node-`vm` CI check with a real JS linter (Biome/ESLint).
 
 ## Owner-only ops (not agent tasks)
