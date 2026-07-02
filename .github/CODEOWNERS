@@ -1,0 +1,4 @@
+# Every change to main goes through review by the repo owner.
+# This makes parallel agent PRs (Codex, Antigravity) land deliberately,
+# not silently. Enforced once branch protection requires CODEOWNER review.
+* @chiranjeevigundu

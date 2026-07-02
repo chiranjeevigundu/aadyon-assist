@@ -1,0 +1,13 @@
+# gitleaks config — default rules plus repo-specific allowlist.
+# Personal denylists (your own name, amounts, hosts) must NOT live in this file:
+# keep them in a private local config and run `gitleaks detect -c <path>` yourself.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Committed placeholders and docs that trip generic rules"
+paths = [
+  '''code/db/seed\.example\.sql''',
+  '''mobile/package-lock\.json''',
+]

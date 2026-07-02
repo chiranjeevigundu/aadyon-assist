@@ -1,0 +1,92 @@
+"""Assistant write-tools: generated schemas + user-scoped dispatch."""
+from app.db.session import set_current_user
+from app.services import tools
+from conftest import patch_query
+
+
+def _names(agent_type):
+    return [s["function"]["name"] for s in tools.schemas_for(agent_type)]
+
+
+def test_assistant_has_read_write_and_propose():
+    names = _names("assistant")
+    assert "get_snapshot" in names
+    assert "propose_action" in names          # external side effects still gated
+    assert "create_deadline" in names
+    assert "update_bill" in names
+    assert "delete_subscription" in names
+    assert "update_profile" in names
+
+
+def test_generated_schemas_are_valid_openai_tools():
+    schema = next(s for s in tools.schemas_for("assistant")
+                  if s["function"]["name"] == "create_deadline")
+    fn = schema["function"]
+    assert schema["type"] == "function"
+    assert fn["parameters"]["type"] == "object"
+    # required fields come from the curated map
+    assert set(fn["parameters"]["required"]) == {"title", "due_date"}
+    assert "title" in fn["parameters"]["properties"]
+
+
+def test_create_injects_user_id(monkeypatch):
+    set_current_user("user-42")
+    fake = patch_query(monkeypatch, "app.services.tools",
+                       lambda sql, p=(), c=False: [{"id": "d1", "title": "Renew passport"}]
+                       if sql.strip().startswith("INSERT") else [])
+    out = tools.dispatch("create_deadline",
+                         {"title": "Renew passport", "due_date": "2026-08-01", "bogus": "x"}, {})
+    assert out["ok"] is True
+    insert = next(c for c in fake.calls if c[0].strip().startswith("INSERT"))
+    assert "INSERT INTO deadlines" in insert[0]
+    assert "user_id" in insert[0]
+    assert "bogus" not in insert[0]            # non-whitelisted field dropped
+    assert "user-42" in insert[1]              # owner bound from context
+
+
+def test_create_missing_required(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools", lambda *a, **k: [])
+    out = tools.dispatch("create_deadline", {"title": "no date"}, {})
+    assert "error" in out and "due_date" in out["error"]
+
+
+def test_update_requires_id(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools", lambda *a, **k: [])
+    assert "error" in tools.dispatch("update_bill", {"amount": 20}, {})
+
+
+def test_update_builds_scoped_update(monkeypatch):
+    set_current_user("u1")
+    fake = patch_query(monkeypatch, "app.services.tools",
+                       lambda sql, p=(), c=False: [{"id": "b1", "amount": 20}]
+                       if sql.strip().startswith("UPDATE") else [])
+    out = tools.dispatch("update_bill", {"id": "b1", "amount": 20}, {})
+    assert out["ok"] is True
+    upd = next(c for c in fake.calls if c[0].strip().startswith("UPDATE"))
+    assert "UPDATE bills SET" in upd[0] and "WHERE id = %s" in upd[0]
+
+
+def test_delete_dispatch(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools",
+                lambda sql, p=(), c=False: [{"id": "s1"}] if "DELETE" in sql else [])
+    assert tools.dispatch("delete_subscription", {"id": "s1"}, {})["ok"] is True
+
+
+def test_update_profile_upserts(monkeypatch):
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        if sql.strip().startswith("SELECT id FROM profile"):
+            return [{"id": "p1"}]          # profile exists -> UPDATE path
+        return []
+    patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch("update_profile", {"target_salary": 150000}, {})
+    assert out["ok"] is True and "profile" in out["action"]
+
+
+def test_non_writable_table_rejected():
+    set_current_user("u1")
+    assert "error" in tools.dispatch("delete_agents", {"id": "x"}, {})
