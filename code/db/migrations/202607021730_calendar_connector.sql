@@ -1,4 +1,5 @@
 -- Aadyon Assist — P2a: Calendar connector
+-- transaction
 
 CREATE TABLE IF NOT EXISTS calendar_accounts (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),

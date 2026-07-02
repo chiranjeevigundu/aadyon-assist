@@ -125,5 +125,5 @@ CREATE TABLE memory_chunks (
   embedding  vector(1536),                        -- fill when embeddings are wired up
   metadata   jsonb NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now()
-);
--- IVFFlat index is added later once there are enough rows to train it.
+)
+-- IVFFlat index is added later once there are enough rows to train it.;
