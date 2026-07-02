@@ -10,15 +10,14 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `main`
-- **Everything merged & verified:** P2a Calendar Connector, Streaming Chat (SSE end-to-end), and the Schemathesis fuzzer fix (TaskStatus enum validation) have all been merged. UUID API typing was also fixed to prevent 500 errors.
-- **Green baseline:** The `main` branch is clean, up-to-date, and all tests/CI are green.
+- **Branch:** `feat/dashboard-login`
+- **Everything merged & verified:** P2a Calendar Connector, Streaming Chat (SSE end-to-end), and the Schemathesis fuzzer fix (TaskStatus enum validation) have all been merged to main.
+- **Just Completed:** Web dashboard login. Implemented token storage via localStorage in `base.js`, added an `Authorization` header to a unified `fetchApi` wrapper, created a `/login` page, and refactored all existing dashboards (`/`, `/tracker`, `/data`, `/agency`, `/accounts`) to use `fetchApi` and handle 401 redirects. Tests pass. Code is pushed to `feat/dashboard-login` branch and is ready for PR and merge.
 
 ## Next up
 
-- **Next Goal:** The next open item on the ROADMAP is **Web dashboard login**.
-- **Status:** Not started.
-- **Next Steps:** Claude should create a new branch `feat/dashboard-login` and begin work on implementing token storage and 401 redirects in `dashboard/assets/base.js`.
+- **Goal:** Dashboard login is complete and ready for review/merge.
+- **Next Steps:** Proceed with the next priority (P4 — CRUD payload validation, or P2b — Drive connector) or review the PR!
 
 ## Known constraints for whoever picks this up
 
@@ -38,6 +37,7 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 | 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
 | 2026-07-02 | Antigravity | fix/tasks-enum-validation | Fix for Schemathesis fuzzing on /api/agency/tasks status param | Pytest green, pushed to remote. |
 | 2026-07-02 | Antigravity | chore/agent-handoff | Updated handoff docs for Claude to begin Web Dashboard Login. | Main is clean; docs pushed to remote. |
+| 2026-07-02 | Antigravity | feat/dashboard-login | Web dashboard login implemented. Added `fetchApi` with token support to `base.js` and updated all HTML dashboard pages. | Pytest green, code pushed to remote. |
 | 2026-07-02 | Antigravity | `feat/calendar-connector` (PR) | Fixed DB migration failures (trailing comments causing empty query error & incorrect timestamp order for users table). | Code pushed to remote. Smoke test, linters, and pytest green. |
 | 2026-07-02 | Claude | `feat/agent-interop` (PR) | Agent-interop baton: ROADMAP.md, HANDOFF.md, GEMINI.md, AGENTS.md handoff protocol | Docs-only; tests 126 green; awaiting owner merge |
 | 2026-07-02 | Claude | `main` (fresh cut `aa79500`) | OSS refactor (P1–P9): PII scrub + fresh single-commit history, justfile, yoyo, LiteLLM, APScheduler, backup image, gitleaks/Schemathesis CI, MIT + docs | Clean `main`; owner-ops items open (see ROADMAP) |
