@@ -139,6 +139,34 @@ safe, history is **linear** (no force-push) and work lands via branches + PRs:
 6. **Avoid two agents editing the same module at once.** Coordinate via PR scope; the generated-
    CRUD design keeps most features localized, which minimizes conflicts.
 
+## Working across assistants (Claude ⇄ Antigravity ⇄ others)
+
+Different AI tools work on this repo **one after another**. Chat context never transfers between
+them, so the repo carries the state: **[HANDOFF.md](HANDOFF.md)** (the baton — current state +
+session log) and **[ROADMAP.md](ROADMAP.md)** (the backlog, written to be executable cold).
+Pointer files route each tool here: `CLAUDE.md` (Claude), `GEMINI.md` (Antigravity/Gemini),
+`.github/copilot-instructions.md`, `.cursor/rules/`.
+
+**Session start ritual (every agent, every session):**
+1. Read AGENTS.md (this file) → HANDOFF.md → ROADMAP.md.
+2. `git pull --ff-only` on `main`; confirm a green baseline with `just test` **before** changing
+   anything — if the baseline is red, fixing it *is* the session's first task.
+3. Pick the top unclaimed ROADMAP item (or the owner's explicit request); mark it `[~]` and note
+   your branch in HANDOFF.md if the session will span a handoff.
+
+**Session end ritual — a session that skips this didn't finish:**
+1. All work committed on a `feat/<name>` branch, pushed, CI-green, PR opened.
+2. Update HANDOFF.md (session-log row + "Current state") and tick ROADMAP **in the same PR**.
+3. Never leave uncommitted or unpushed work. Blocked mid-task? Commit WIP to the branch and
+   write exact resume steps in HANDOFF.md.
+
+**Identity & branches:** commit under your own identity (Claude uses
+`Claude <noreply@anthropic.com>`; Antigravity/Gemini should set a distinct `git config
+user.name`/`user.email`) so `git log` shows who did what. Never push to another agent's
+in-flight branch unless HANDOFF.md explicitly hands it to you. All other rules in this file —
+branch-per-feature, PR + CI gate, timestamped migrations, pinned deps, no force-push of `main`,
+human-serialized deploys — apply identically to every assistant.
+
 ## Deploy ritual
 
 ```bash
