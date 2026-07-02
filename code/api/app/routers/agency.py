@@ -26,8 +26,19 @@ def ask(payload: dict):
     return {"task": task, "note": "queued for the CEO; runs via the worker or POST /run"}
 
 
+from enum import Enum
+
+class TaskStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    AWAITING_APPROVAL = "awaiting_approval"
+    BLOCKED = "blocked"
+    DONE = "done"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
 @router.get("/tasks")
-def tasks(status: str | None = None):
+def tasks(status: TaskStatus | None = None):
     sql = (
         "SELECT t.*, te.name AS team_name, a.name AS agent_name "
         "FROM tasks t LEFT JOIN teams te ON te.id = t.team_id "
@@ -36,7 +47,7 @@ def tasks(status: str | None = None):
     params: tuple = ()
     if status:
         sql += "WHERE t.status = %s "
-        params = (status,)
+        params = (status.value,)
     sql += "ORDER BY t.created_at DESC LIMIT 200"
     return query(sql, params)
 
