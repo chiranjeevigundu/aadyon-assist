@@ -42,7 +42,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
 
 ## Next
 
-- [ ] **CRUD payload validation** — generate Pydantic models (or per-column type coercion) from
+- [x] **CRUD payload validation** — generate Pydantic models (or per-column type coercion) from
   the `Entity` registry in `models/tables.py` so bad payloads 422 instead of 500; then widen the
   CI Schemathesis step beyond `--include-method GET` (see comment in `.github/workflows/ci.yml`).
   Accept: fuzzed writes never 5xx; existing CRUD tests updated; Schemathesis fuzzes writes in CI.
