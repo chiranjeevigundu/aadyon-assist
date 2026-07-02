@@ -51,6 +51,7 @@ services:
       - jwt_secret            # signing key for multi-user auth tokens
     volumes:
       - ./artifacts:/srv/artifacts
+      - ./code/dashboard:/srv/dashboard
     extra_hosts:
       - "host.docker.internal:host-gateway"   # reach local Ollama on the host
     ports:
