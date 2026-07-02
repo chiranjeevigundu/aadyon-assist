@@ -74,7 +74,7 @@ The stack is **seven containers** in `docker-compose.yml` (long-running ones
 | **api** | `code/api/Dockerfile` | FastAPI: REST API + serves dashboards. HTTP healthcheck on `/api/health`. | `${API_PORT:-8000}:8000` |
 | **briefing** | same image | Runs `app.jobs.briefing_loop`: APScheduler cron writes `artifacts/briefing-*.md` and pushes to ntfy, daily at `BRIEFING_HOUR`. | — |
 | **agency** | same image | Runs `app.jobs.agency_loop`: drains the agent task queue (CEO → teams). | — |
-| **backup** | `prodrigestivill/postgres-backup-local:16` | Nightly gzipped `pg_dump` into `data/exports/daily/`, 14-day retention. | — |
+| **backup** | `prodrigestivill/postgres-backup-local:16` | Nightly gzipped `pg_dump` into `data/exports/daily/`, 14-day retention. `backup_sync.py` ships dumps to S3. | — |
 | **ntfy** | `binwiederhier/ntfy` | Self-hosted push server. Private to the tailnet; `ntfy.sh` upstream only proxies the iOS background wake. | `${NTFY_PORT:-8090}:80` |
 
 The DB password is supplied to `db`, `api`, `briefing`, `agency`, and `backup` via a **Docker
@@ -124,10 +124,13 @@ app/
     email_graph.py     Microsoft Graph (Outlook/365) sync path
     email_ingest.py    entrypoint: dispatch per-account sync, sync_all, re-export helpers
     ms_graph.py        Graph device-code OAuth + mail fetch
+    document_ingest.py PDF extraction (pypdf) + LLM vision parsing
+    storage.py         S3 client (boto3) wrapper
   jobs/
     briefing_loop.py   briefing worker (own container)
     agency_loop.py     agent queue worker (own container)
     import_entities.py inbox importer (run via `just import`)
+    backup_sync.py     syncs pg_dump archives to S3
 ```
 
 **Generic CRUD.** `models/tables.py` declares each table as an `Entity(table, columns, order_by)`.
@@ -273,12 +276,17 @@ Every table has DB-managed `id` (UUID), `created_at`, and `updated_at`.
 | `jobs` | Part-time / full-time jobs | employer, role, kind, status, hourly_rate, annual_salary, remittance_pct, start/end_date |
 | `work_schedule` | Weekly hours per job | **job_id → jobs**, day_of_week, start/end_time, hours, active |
 
-**Email**
+**Email & Connectors (P2 / P3)**
 
 | Table | Purpose | Notable columns |
 |---|---|---|
 | `email_accounts` | Mailbox registry + connection state | email, provider, auth_type, imap_host/port, status, **secret_enc** (Fernet), last_sync, last_uid, uid_validity, last_error |
 | `email_extractions` | Review queue of extracted items | **account_id → email_accounts**, message_uid, message_date, sender, subject, kind, payload (JSON), summary, status (pending/approved/dismissed) |
+| `documents` | PDFs and receipts (P3) | filename, mime_type, **storage_path** (S3 key), size_bytes |
+| `document_extractions` | Review queue for parsed documents | **document_id → documents**, status, kind, payload |
+| `calendar_accounts` | Google Calendar connections | email, provider, status, **secret_enc**, sync_token |
+| `drive_accounts` | Google Drive connections | email, provider, status, **secret_enc**, page_token |
+| `bank_accounts` | Plaid/Teller Banking accounts | inst_name, account_mask, type, balance, **secret_enc** |
 
 **Agentic org**
 
@@ -323,11 +331,12 @@ and `/api/auth/*`. Data is scoped to the token's user by RLS.
 - `POST /api/agency/ask` (give the CEO a goal) · `GET /api/agency/tasks` · `GET /api/agency/runs`
 - `POST /api/agency/tasks/{id}/run|approve|reject`
 
-**Email**
+**Email & Documents**
 - `POST /api/email/{account_id}/connect` (IMAP app-password) · `POST .../disconnect`
 - `POST /api/email/{account_id}/ms/start` · `POST .../ms/complete` (Graph device-code)
 - `POST /api/email/{account_id}/sync`
 - `GET /api/email/extractions?status=` · `POST /api/email/extractions/{id}/approve|dismiss`
+- `POST /api/documents` (upload file to S3) · `GET /api/documents/{id}/content`
 
 ---
 
@@ -344,9 +353,8 @@ and `/api/auth/*`. Data is scoped to the token's user by RLS.
 - **Action boundary.** The assistant writes the user's *own* records directly (create/update/delete
   deadlines, bills, debts, subscriptions, milestones, profile). External side effects — money, email,
   filings — still route through `propose_action` → `awaiting_approval` for explicit human sign-off.
-- **Secrets via Docker secrets.** `db_password`, `jwt_secret`, `openrouter_api_key`, and the email
-  Fernet key (`email_key`) are mounted from `secrets/` (preferred) with env-var fallback for local
-  dev. Config reads secret files first, env second.
+- **Secrets via Docker secrets.** `db_password`, `jwt_secret`, `openrouter_api_key`, `email_key`,
+  `s3_access_key`, and `s3_secret_key` are mounted from `secrets/` (preferred) with env-var fallback. Config reads secret files first, env second.
 - **Email credentials encrypted at rest.** IMAP app-passwords and Graph refresh tokens are stored
   in `email_accounts.secret_enc`, encrypted with Fernet (`crypto.py`). Plaintext is held only
   transiently in memory during a sync.
@@ -439,6 +447,7 @@ Set in `.env` (see `.env.example`); secrets preferred via files in `secrets/`.
 | `MS_CLIENT_ID` / `MS_TENANT` | Microsoft Graph app | — / `common` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Gmail OAuth (IMAP used in practice) | — |
 | `NTFY_TOPIC` / `NTFY_PORT` / `NTFY_BASE_URL` | Push topic / port / phone-facing URL | — / 8090 / — |
+| `S3_ENDPOINT_URL` / `S3_BUCKET` | AWS S3 or MinIO bucket config | — / `aadyon-assist` |
 
 ---
 
