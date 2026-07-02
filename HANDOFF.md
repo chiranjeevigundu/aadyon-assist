@@ -10,9 +10,9 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `feat/calendar-connector`
-- **Everything merged & verified:** P2a Calendar Connector is fully implemented, DB migrations empty query error (trailing comments) fixed, migration execution order issue fixed (`users` relation error).
-- **Green baseline:** All migrations apply successfully, DB schema builds correctly, tests and linters pass (`pytest` and `ruff`), and the API container starts.
+- **Branch:** `feat/streaming-chat`
+- **Everything merged & verified:** P2a Calendar Connector is fully implemented, DB migrations empty query error (trailing comments) fixed, migration execution order issue fixed (`users` relation). UUID API typing fixed to avoid Schemathesis fuzzing crashes on 500 errors.
+- **Just Completed:** Streaming Chat (SSE end-to-end). Upgraded `llm.py` and `assistant.py` to stream tokens directly using LiteLLM streaming via SSE generator. Integrated `react-native-sse` in the mobile app and updated `AssistantScreen.tsx` to incrementally render chat. All python unit tests pass. apply successfully, DB schema builds correctly, tests and linters pass (`pytest` and `ruff`), and the API container starts.
 
 ## Next up
 
@@ -37,6 +37,7 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
 | 2026-07-02 | Antigravity | `feat/calendar-connector` (PR) | Fixed DB migration failures (trailing comments causing empty query error & incorrect timestamp order for users table). | Code pushed to remote. Smoke test, linters, and pytest green. |
 | 2026-07-02 | Claude | `feat/agent-interop` (PR) | Agent-interop baton: ROADMAP.md, HANDOFF.md, GEMINI.md, AGENTS.md handoff protocol | Docs-only; tests 126 green; awaiting owner merge |
 | 2026-07-02 | Claude | `main` (fresh cut `aa79500`) | OSS refactor (P1–P9): PII scrub + fresh single-commit history, justfile, yoyo, LiteLLM, APScheduler, backup image, gitleaks/Schemathesis CI, MIT + docs | Clean `main`; owner-ops items open (see ROADMAP) |

@@ -25,7 +25,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   Accept: `just test` green (new DB-free unit tests for ingest/dedup); CI smoke passes;
   a synced event shows in the review queue and Approve creates a `deadlines` row.
 
-- [ ] **Streaming chat (SSE end-to-end)**
+- [x] **Streaming chat (SSE end-to-end)**
   Goal: token streaming in the Assistant tab.
   Reuse: `litellm.completion(stream=True)` in `services/llm.py` (design note in module
   docstring: stream only the terminal turn; tool rounds stay non-streamed);

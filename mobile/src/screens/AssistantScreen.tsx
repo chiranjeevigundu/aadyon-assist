@@ -45,18 +45,27 @@ export default function AssistantScreen() {
     setBusy(true);
     scroll();
     try {
-      const res: ChatResult = await api.chat(text, convId.current);
+      const botId = nextId();
+      setMessages((m) => [...m, { id: botId, role: "assistant", text: "" }]);
+      
+      const res: ChatResult = await api.chatStream(text, convId.current, (chunk) => {
+        if (chunk.delta) {
+          setMessages((m) =>
+            m.map((msg) =>
+              msg.id === botId ? { ...msg, text: msg.text + chunk.delta } : msg
+            )
+          );
+        }
+      });
+      
       convId.current = res.conversation_id;
-      setMessages((m) => [
-        ...m,
-        {
-          id: nextId(),
-          role: "assistant",
-          text: res.reply,
-          actions: res.actions,
-          proposals: res.proposals,
-        },
-      ]);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === botId
+            ? { ...msg, actions: res.actions, proposals: res.proposals }
+            : msg
+        )
+      );
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : String(e);
       setMessages((m) => [...m, { id: nextId(), role: "assistant", text: `⚠️ ${msg}` }]);
