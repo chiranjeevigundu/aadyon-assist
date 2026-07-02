@@ -5,7 +5,7 @@ google.com/device. We store only the refresh token (encrypted); access
 tokens are minted per sync. Read-only (calendar.readonly).
 """
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from app.core.config import get_settings
 

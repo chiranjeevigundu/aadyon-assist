@@ -6,7 +6,6 @@ Extracted items land in calendar_extractions (status=pending) for human review.
 """
 from datetime import datetime, timezone
 
-from app.core.config import get_settings
 from app.db.session import active_user_ids, query, set_current_user
 from app.services import crypto
 from app.services.calendar_google import fetch_events, refresh, GoogleError
@@ -14,10 +13,8 @@ from app.services.calendar_store import process_event, approve_extraction
 
 __all__ = ["sync_account", "sync_all", "approve_extraction"]
 
-
 def sync_account(account_id: str) -> dict:
     """Fetch recent events for one account, extract, queue pending items."""
-    s = get_settings()
     rows = query("SELECT * FROM calendar_accounts WHERE id = %s", (account_id,))
     if not rows:
         return {"error": "account not found"}
@@ -33,7 +30,7 @@ def sync_account(account_id: str) -> dict:
         if tokens["refresh_token"] != refresh_token:
             enc = crypto.encrypt(tokens["refresh_token"])
             query("UPDATE calendar_accounts SET secret_enc=%s WHERE id=%s", (enc, account_id), commit=True)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         query("UPDATE calendar_accounts SET status='error', last_error=%s WHERE id=%s",
               (f"token refresh failed: {e}", account_id), commit=True)
         return {"error": f"Token refresh failed: {e}"}
