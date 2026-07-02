@@ -3,6 +3,7 @@
 // The app is multi-user now: requests carry a JWT bearer token obtained at login.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import EventSource from "react-native-sse";
 
 const BASE_KEY = "aadyon.apiBase";
 const TOKEN_KEY = "aadyon.token";
@@ -125,6 +126,50 @@ export const api = {
   messages: (cid: string) => request<any[]>(`/api/assistant/conversations/${cid}/messages`),
   chat: (message: string, conversation_id?: string) =>
     post<ChatResult>("/api/assistant/chat", { message, conversation_id }),
+  chatStream: (
+    message: string,
+    conversation_id: string | undefined,
+    onChunk: (chunk: { delta: string }) => void
+  ) => {
+    return new Promise<ChatResult>(async (resolve, reject) => {
+      const base = await getApiBase();
+      const token = await getToken();
+      const url = `${base}/api/assistant/chat/stream`;
+
+      const es = new EventSource(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message, conversation_id }),
+      });
+
+      es.addEventListener("message", (event) => {
+        if (event.data) {
+          try {
+            const parsed = JSON.parse(event.data);
+            if (parsed.error) {
+              es.close();
+              reject(new ApiError(500, parsed.error));
+            } else if (parsed.done) {
+              es.close();
+              resolve(parsed as ChatResult);
+            } else {
+              onChunk(parsed);
+            }
+          } catch (e) {
+            console.error("SSE parse error", e);
+          }
+        }
+      });
+
+      es.addEventListener("error", (event: any) => {
+        es.close();
+        reject(new ApiError(500, event.message || "Stream error"));
+      });
+    });
+  },
 };
 
 // ---- Loose types (backend is the source of truth; keep these forgiving) ----
