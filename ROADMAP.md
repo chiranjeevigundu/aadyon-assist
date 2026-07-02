@@ -48,7 +48,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   Accept: fuzzed writes never 5xx; existing CRUD tests updated; Schemathesis fuzzes writes in CI.
 - [x] **P2b — Drive connector** (read-only listing → feeds P3): same connector template;
   OAuth like calendar. Accept: file list synced per user, RLS-scoped.
-- [ ] **P2c — Banking connector (strict propose-only)**: API key in `secret_enc`;
+- [x] **P2c — Banking connector (strict propose-only)**: API key in `secret_enc`;
   transactions → review queue; assistant `get_transactions` read tool. Money movement is
   NEVER executed — `propose_action` only (AGENTS.md golden rule 2).
 - [ ] **P3 — Document analysis**: `POST /api/documents` (FastAPI `UploadFile`), per-user
