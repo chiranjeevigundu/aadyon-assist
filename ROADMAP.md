@@ -51,7 +51,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
 - [x] **P2c — Banking connector (strict propose-only)**: API key in `secret_enc`;
   transactions → review queue; assistant `get_transactions` read tool. Money movement is
   NEVER executed — `propose_action` only (AGENTS.md golden rule 2).
-- [ ] **P3 — Document analysis**: `POST /api/documents` (FastAPI `UploadFile`), per-user
+- [x] **P3 — Document analysis**: `POST /api/documents` (FastAPI `UploadFile`), per-user
   `documents` + `document_extractions` tables (RLS), text PDFs via `pypdf` (pin), scans via an
   OpenRouter vision model through `llm.chat`; review queue → approved rows become
   deadlines/bills/subscriptions. Store files under `artifacts_dir` until P4.

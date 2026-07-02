@@ -11,3 +11,5 @@ yoyo-migrations==8.2.0
 setuptools==70.0.0
 litellm==1.90.2
 APScheduler==3.10.4
+pypdf==5.1.0
+python-multipart==0.0.19
