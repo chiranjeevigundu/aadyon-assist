@@ -56,6 +56,12 @@ def _daily_run() -> None:
         print(f"[briefing] error: {e}", flush=True)
 
 
+    try:
+        from app.jobs.backup_sync import sync_backups
+        sync_backups()
+    except Exception as e:
+        print(f"[briefing] backup sync error: {e}", flush=True)
+
 def main() -> None:
     s = get_settings()
     # On start: write today's briefing immediately (no email sync — matches the

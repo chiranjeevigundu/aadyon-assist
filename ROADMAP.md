@@ -58,7 +58,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
 
 ## Later
 
-- [ ] **P4 — Cloud storage**: S3-compatible (boto3, pinned) for documents + backup dumps;
+- [x] **P4 — Cloud storage**: S3-compatible (boto3, pinned) for documents + backup dumps;
   per-user key prefixes; creds via Docker secrets; bucket never exposed publicly.
 - [ ] **P5 — Proactive intelligence**: per-user ntfy topics (column on `users`), alert rules
   (deadline within N days, low balance from P2c) pushed via `services/notify.py`.

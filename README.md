@@ -5,7 +5,7 @@
 
 A **self-hosted, multi-user personal life-ops platform** with a conversational AI assistant:
 one Postgres source of truth for your deadlines, debts, bills, subscriptions, work and goals —
-plus an agentic "org" that analyzes it, an email-ingest pipeline that turns inbox noise into
+an agentic "org" that analyzes it, an email/document-ingest pipeline that turns inbox noise and PDFs into
 reviewable to-dos, and an iPhone app with a Jarvis-style chat that can act on your data.
 
 Personal life-ops tracker. Phase 1 (now): a lean, self-hosted tracker for **deadlines,
@@ -24,8 +24,8 @@ subscription inactive"). Anything with a real-world side effect (money, email, f
 back as a **proposal you approve** — it never auto-executes. API auth is a JWT bearer token
 (`POST /api/auth/login`); `/api/health` and `/api/auth/*` are the only public routes.
 
-> Web dashboards (`/`, `/tracker`, …) are a follow-up for the new auth — the iPhone app is the
-> primary client for the assistant in this phase.
+> Web dashboards (`/`, `/tracker`, …) also require login. They share the same JWT auth layer 
+> and store your session transparently.
 
 ## Digital Me
 The front door (`http://localhost:8000`) is now a **Digital Me** view: a single living
@@ -77,14 +77,14 @@ in `secrets/openrouter_api_key.txt`) and restart. Optional: run **Ollama** on th
 the `local` tier. Until a key is present, agents route correctly but tasks show **blocked**
 with a clear message — nothing crashes.
 
-## Email accounts (`/accounts`)
-Connect your mailboxes and let the app turn inbox noise into reviewable to-dos. It reads mail
-**read-only** (never deletes or sends), runs each new message through the cheap model to extract
-one actionable item — a deadline, bill, or subscription — and queues it in a **review queue**.
-Nothing is auto-applied: you Approve (it becomes a real `deadline`/`bill`/`subscription`) or
-Dismiss. iCloud and Gmail connect via **IMAP app-password**; Outlook/Microsoft 365 via **Microsoft
-Graph device-code**. Stored credentials are **Fernet-encrypted** at rest, and each account keeps a
-sync cursor so a daily sync only reads new mail. Syncs run automatically with the morning briefing.
+## Email, Documents, and Connectors (`/accounts`)
+Connect your mailboxes, cloud drives, calendar, and banking accounts to let the app turn inbox noise, statements, and PDFs into reviewable to-dos. 
+- **Email**: Reads mail **read-only**, runs each new message through the model to extract actionable items (deadlines, bills) and queues it. iCloud/Gmail via **IMAP app-password**; Outlook via **Microsoft Graph device-code**.
+- **Documents (P3)**: Upload PDFs and receipts. Extracted text and OpenAI Vision parses the content to queue extracted items. Stored in S3 (P4).
+- **Calendar & Drive (P2)**: Connects to Google Calendar and Google Drive to sync upcoming events and documents into the ecosystem.
+- **Banking (P2)**: Syncs transactions for financial score analysis and bill verification.
+
+Nothing is auto-applied: you Approve (it becomes a real `deadline`/`bill`/`subscription`) or Dismiss. Stored credentials are **Fernet-encrypted** at rest, and each account keeps a sync cursor. Syncs run automatically with the morning briefing or background worker.
 
 ## Morning briefing → phone
 The `briefing` service writes `artifacts/briefing-*.md` daily and pushes it to a **self-hosted
@@ -98,8 +98,7 @@ iOS background wake is proxied via `ntfy.sh`. Set `NTFY_TOPIC` in `.env` to enab
 
 ## Stack
 - **Postgres 16 + pgvector** — relational data now, vector memory ready for later RAG.
-- **FastAPI (Python)** — REST API + serves the dashboards; **LiteLLM** for model access
-  (OpenRouter cloud + local Ollama); **yoyo-migrations** for plain-SQL schema migrations.
+- **FastAPI (Python)** — REST API + serves the dashboards; **LiteLLM** for model access; **boto3** for S3 cloud storage; **yoyo-migrations** for plain-SQL schema migrations.
 - **Docker Compose** — services: `db`, `migrate`, `api`, `briefing`, `agency`, `backup`, `ntfy`.
   DB password and API keys via **Docker secrets**. Tasks via **just** (`just --list`).
 - **Vanilla HTML/JS dashboards** — no build step, served by the API; shared CSS/JS in `/static`.
@@ -125,7 +124,6 @@ aadyon-assist/
     db/seed/        your personal seed SQL (gitignored; `just seed`)
     dashboard/      pages: digital-me, index (tracker), data, agency, accounts + assets/
   mobile/           Expo / React Native iPhone app (login + assistant chat)
-  documents/        SENSITIVE — your own PDFs and records (gitignored)
   artifacts/        dashboard exports, drafts (gitignored)
   data/             local Postgres volume + exports (gitignored)
   justfile          task runner (up/down/test/lint/migrate/seed/backup/…)

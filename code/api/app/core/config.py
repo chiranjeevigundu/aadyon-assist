@@ -23,6 +23,12 @@ class Settings:
         self.briefing_hour = int(os.getenv("BRIEFING_HOUR", "7"))
         self.tz = os.getenv("TZ", "UTC")
 
+        # --- Cloud Storage (S3-compatible) ---
+        self.s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "").strip()
+        self.s3_bucket = os.getenv("S3_BUCKET_NAME", "aadyon-assist").strip()
+        self.s3_access_key_file = os.getenv("S3_ACCESS_KEY_FILE", "/run/secrets/s3_access_key")
+        self.s3_secret_key_file = os.getenv("S3_SECRET_KEY_FILE", "/run/secrets/s3_secret_key")
+
         # Public-facing URL of this app (used e.g. as the OpenRouter HTTP-Referer).
         self.app_public_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000").strip()
 
@@ -101,6 +107,22 @@ class Settings:
             with open(self.jwt_secret_file) as f:
                 return f.read().strip()
         return os.getenv("JWT_SECRET", "").strip()
+
+    @property
+    def s3_access_key(self) -> str:
+        """Access key for S3 bucket."""
+        if os.path.exists(self.s3_access_key_file):
+            with open(self.s3_access_key_file) as f:
+                return f.read().strip()
+        return os.getenv("S3_ACCESS_KEY_ID", "").strip()
+
+    @property
+    def s3_secret_key(self) -> str:
+        """Secret key for S3 bucket."""
+        if os.path.exists(self.s3_secret_key_file):
+            with open(self.s3_secret_key_file) as f:
+                return f.read().strip()
+        return os.getenv("S3_SECRET_ACCESS_KEY", "").strip()
 
 
 @lru_cache
