@@ -21,7 +21,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         },
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "The assistant uses the microphone for voice input.",
+        "NSSpeechRecognitionUsageDescription": "Speech is transcribed on-device to text you send to your assistant."
       }
     },
     "android": {
@@ -29,6 +31,9 @@
     },
     "extra": {
       "defaultApiBase": "http://localhost:8000"
-    }
+    },
+    "plugins": [
+      "expo-speech-recognition"
+    ]
   }
 }
