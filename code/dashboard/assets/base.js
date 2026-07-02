@@ -39,6 +39,28 @@ function num(n){ return n==null ? '—' : Number(n).toLocaleString('en-US'); }
 // Back-compat alias: pages historically used `$` as the element-from-HTML helper.
 const $ = el;
 
+// --- Auth ---
+const TOKEN_KEY = 'aadyon.token';
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+function logout() { localStorage.removeItem(TOKEN_KEY); window.location.href = '/login'; }
+
+async function fetchApi(url, options = {}) {
+  const token = getToken();
+  const headers = { ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (!headers['Content-Type'] && options.body && typeof options.body === 'string') {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    logout();
+    throw new Error("Unauthorized");
+  }
+  return res;
+}
+
 // Consistent top-right nav across pages. Any <nav data-nav> is filled with the
 // full link set, with the current page marked active. Keeps every page in sync.
 const NAV_LINKS = [
@@ -53,5 +75,17 @@ function renderNav(){
     return `<a href="${href}"${ext}${active}>${label}</a>`;
   }).join('');
   document.querySelectorAll('[data-nav]').forEach(n => { n.innerHTML = html; });
+  
+  // Add logout link to the header
+  const headerSub = document.querySelector('header .sub:last-child');
+  if (headerSub && !document.querySelector('.logout-btn')) {
+    const logoutBtn = document.createElement('a');
+    logoutBtn.href = '#';
+    logoutBtn.className = 'logout-btn';
+    logoutBtn.innerText = 'Logout';
+    logoutBtn.onclick = (e) => { e.preventDefault(); logout(); };
+    headerSub.appendChild(document.createTextNode(' · '));
+    headerSub.appendChild(logoutBtn);
+  }
 }
 document.addEventListener('DOMContentLoaded', renderNav);

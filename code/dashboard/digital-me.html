@@ -118,7 +118,7 @@ function bar(pct,color){ return `<div class="bar"><span style="width:${Math.max(
 async function load(){
   const app = document.getElementById('app');
   let d;
-  try { d = await (await fetch('/api/digital-me')).json(); }
+  try { d = await (await fetchApi('/api/digital-me')).json(); }
   catch(e){ app.innerHTML = '<div class="card">API not reachable. Is the stack up? <code>docker compose up -d</code></div>'; return; }
   app.innerHTML='';
   document.getElementById('asof').textContent = 'as of '+d.as_of;
