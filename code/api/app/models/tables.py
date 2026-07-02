@@ -115,6 +115,17 @@ ENTITIES: list[Entity] = [
          "merchant": str, "category": str, "status": str},
         order_by="date DESC",
     ),
+    # --- Documents ---
+    Entity(
+        "documents",
+        {"filename": str, "mime_type": str, "size_bytes": int, "status": str},
+        order_by="created_at DESC",
+    ),
+    Entity(
+        "document_extractions",
+        {"document_id": UUID, "kind": str, "summary": str, "status": str},
+        order_by="created_at DESC",
+    ),
     # --- Agentic org layer ---
     Entity(
         "teams",
