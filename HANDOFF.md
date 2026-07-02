@@ -10,7 +10,12 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `feat/proactive-alerts` (PR open) — P5 proactive intelligence: `users.ntfy_topic`
+- **Branch:** `feat/voice` (PR open) — P5 Voice: `mobile/src/voice.ts` (lazy-loaded
+  expo-speech TTS + expo-speech-recognition STT, degrades gracefully in Expo Go), mic button +
+  speak-replies toggle in AssistantScreen, iOS mic/speech permissions + config plugin in
+  app.json. Voice needs a dev/EAS build (`eas build`), not Expo Go. Also fixes a pre-existing
+  tsc error in mobile/src/api.ts. `npm run typecheck` clean.
+- **Previously merged:** `feat/proactive-alerts` (PR #24) — P5 proactive intelligence: `users.ntfy_topic`
   migration, `services/alerts.py` (deadline/bill windowing read-model), generic
   `notify.push_message` with per-user topics, briefing worker pushes an alert digest after each
   user's briefing, `GET /api/alerts`, `PATCH /api/auth/me` (set display_name / ntfy_topic).
@@ -21,9 +26,8 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Next up
 
-- Merge `feat/proactive-alerts` when CI is green.
-- Then the last big ROADMAP item: **P5 Voice** (Expo STT → `/api/assistant/chat` → `expo-speech`
-  TTS; thin client layer, no backend change), plus the dashboard-JS extraction chore.
+- Merge `feat/voice` when CI is green — that completes the original ROADMAP build-out.
+- Remaining chores: dashboard-JS extraction (Later section) and the owner-only ops box.
 
 ## Known constraints for whoever picks this up
 
@@ -41,6 +45,7 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Claude | `feat/voice` (PR) | P5 Voice: STT mic + TTS speak-replies in the Assistant tab (lazy voice.ts, iOS permissions/plugin); fixed mobile tsc error | typecheck clean, pytest 146 green; needs EAS build for native voice |
 | 2026-07-02 | Claude | `feat/proactive-alerts` (PR) | P5 proactive intelligence: per-user ntfy topics, alerts read-model + digest push, GET /api/alerts, PATCH /api/auth/me | pytest 146 green, ruff clean; merge when CI green |
 | 2026-07-02 | Claude | `fix/ci-uuid-lint` (PR) | CI red-to-green: `register_uuid()` in db/session.py (UUID params 500'd under write-fuzzing) + removed unused import in routers/documents.py | pytest 140 green, ruff clean; merge when CI green |
 | 2026-07-01 | Antigravity | feat/calendar-connector | Calendar connector feature complete, fixes for yoyo empty queries, db dependencies and uuid typing complete. |
