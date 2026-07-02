@@ -15,6 +15,11 @@ def test_analyze_document_pdf(monkeypatch, tmp_path):
 
     fake = patch_query(monkeypatch, "app.services.document_ingest", mock_query)
     
+    # Mock storage download
+    def mock_download(key, fileobj):
+        fileobj.write(b"dummy")
+    monkeypatch.setattr("app.services.document_ingest.storage.download_fileobj", mock_download)
+    
     # Mock PDF extraction
     monkeypatch.setattr("app.services.document_ingest.extract_text_from_pdf", lambda path: "This is a bill for $50 due 2026-08-01")
 

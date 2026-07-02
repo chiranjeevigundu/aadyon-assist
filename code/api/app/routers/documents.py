@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 
 from app.core.config import get_settings
 from app.db.session import current_user_id, query
-from app.services import document_ingest, document_store
+from app.services import document_ingest, document_store, storage
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -12,26 +12,24 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     """Upload a file and kick off async analysis."""
     uid = current_user_id()
-    settings = get_settings()
     
-    # Ensure artifacts dir exists for user
-    user_dir = settings.artifacts_dir / uid
-    user_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save file
+    # S3 Object Key: uid/filename
     safe_name = "".join(c for c in (file.filename or "unnamed") if c.isalnum() or c in "._- ")
-    storage_path = user_dir / safe_name
+    object_key = f"{uid}/{safe_name}"
+    
+    # We read the file to get size, then wrap in BytesIO for boto3 since FastAPI UploadFile 
+    # doesn't natively expose a good interface for boto3 upload_fileobj sometimes.
     content = await file.read()
-    with open(storage_path, "wb") as f:
-        f.write(content)
-        
     size = len(content)
+    
+    import io
+    storage.upload_fileobj(io.BytesIO(content), object_key, file.content_type)
     
     # DB insert
     rows = query(
         "INSERT INTO documents (user_id, filename, mime_type, storage_path, size_bytes) "
         "VALUES (%s, %s, %s, %s, %s) RETURNING id",
-        (uid, safe_name, file.content_type, str(storage_path), size),
+        (uid, safe_name, file.content_type, object_key, size),
         commit=True
     )
     doc_id = str(rows[0]["id"])
