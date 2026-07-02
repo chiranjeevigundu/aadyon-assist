@@ -5,7 +5,7 @@ from conftest import patch_query
 
 
 def test_entities_meta(monkeypatch):
-    monkeypatch.setattr(schema, "ENTITIES", [Entity("widgets", ["name", "color"])])
+    monkeypatch.setattr(schema, "ENTITIES", [Entity("widgets", {"name": str, "color": str})])
     cols = [
         {"column_name": "id", "data_type": "uuid", "is_nullable": "NO",
          "column_default": "gen_random_uuid()"},

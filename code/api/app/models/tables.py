@@ -4,118 +4,121 @@
 writable through the API.
 """
 from dataclasses import dataclass
+from datetime import date, time
+from typing import Any
+from uuid import UUID
 
 
 @dataclass(frozen=True)
 class Entity:
     table: str
-    columns: list[str]
+    columns: dict[str, Any]
     order_by: str = "updated_at DESC"
 
 
 ENTITIES: list[Entity] = [
     Entity(
         "deadlines",
-        ["title", "category", "due_date", "status", "priority", "blocked_on", "notes"],
+        {"title": str, "category": str, "due_date": date, "status": str, "priority": int, "blocked_on": str, "notes": str},
         order_by="due_date ASC",
     ),
     Entity(
         "debts",
-        ["name", "kind", "balance", "apr", "min_payment", "credit_limit",
-         "due_date", "installment_amount", "term_months", "installments_paid",
-         "priority_rank", "notes"],
+        {"name": str, "kind": str, "balance": float, "apr": float, "min_payment": float, "credit_limit": float,
+         "due_date": date, "installment_amount": float, "term_months": int, "installments_paid": int,
+         "priority_rank": int, "notes": str},
         order_by="priority_rank NULLS LAST",
     ),
     Entity(
         "bills",
-        ["name", "amount", "frequency", "due_day", "autopay", "category", "active", "notes"],
+        {"name": str, "amount": float, "frequency": str, "due_day": int, "autopay": bool, "category": str, "active": bool, "notes": str},
         order_by="due_day NULLS LAST",
     ),
     Entity(
         "subscriptions",
-        ["name", "amount", "billing_cycle", "renews_on", "category", "active", "notes"],
+        {"name": str, "amount": float, "billing_cycle": str, "renews_on": date, "category": str, "active": bool, "notes": str},
         order_by="renews_on NULLS LAST",
     ),
     Entity(
         "shifts",
-        ["employer", "role", "shift_date", "start_time", "end_time", "hours",
-         "hourly_rate", "est_pay", "status", "notes"],
+        {"employer": str, "role": str, "shift_date": date, "start_time": time, "end_time": time, "hours": float,
+         "hourly_rate": float, "est_pay": float, "status": str, "notes": str},
         order_by="shift_date DESC",
     ),
     # --- Digital Me layer ---
     Entity(
         "profile",
-        ["full_name", "preferred_name", "birthdate", "birthplace", "location",
-         "nationality", "headline", "bio", "visa_type", "visa_status",
-         "work_auth_until", "target_role", "target_salary", "current_income",
-         "remittance_pct", "monthly_essential_expenses", "goal_title",
-         "goal_target_date", "life_expectancy_years"],
+        {"full_name": str, "preferred_name": str, "birthdate": date, "birthplace": str, "location": str,
+         "nationality": str, "headline": str, "bio": str, "visa_type": str, "visa_status": str,
+         "work_auth_until": date, "target_role": str, "target_salary": float, "current_income": float,
+         "remittance_pct": float, "monthly_essential_expenses": float, "goal_title": str,
+         "goal_target_date": date, "life_expectancy_years": float},
         order_by="updated_at DESC",
     ),
     Entity(
         "applications",
-        ["company", "role", "status", "salary_min", "salary_max", "location",
-         "work_type", "source", "url", "applied_date", "notes"],
+        {"company": str, "role": str, "status": str, "salary_min": float, "salary_max": float, "location": str,
+         "work_type": str, "source": str, "url": str, "applied_date": date, "notes": str},
         order_by="updated_at DESC",
     ),
     Entity(
         "milestones",
-        ["title", "category", "milestone_date", "achieved", "progress_pct", "notes"],
+        {"title": str, "category": str, "milestone_date": date, "achieved": bool, "progress_pct": float, "notes": str},
         order_by="milestone_date ASC",
     ),
     # --- Work & income ---
     Entity(
         "jobs",
-        ["employer", "role", "kind", "status", "hourly_rate", "annual_salary",
-         "remittance_pct", "start_date", "end_date", "notes"],
+        {"employer": str, "role": str, "kind": str, "status": str, "hourly_rate": float, "annual_salary": float,
+         "remittance_pct": float, "start_date": date, "end_date": date, "notes": str},
         order_by="status ASC, employer ASC",
     ),
     Entity(
         "work_schedule",
-        ["job_id", "day_of_week", "start_time", "end_time", "hours", "active", "notes"],
+        {"job_id": UUID, "day_of_week": int, "start_time": time, "end_time": time, "hours": float, "active": bool, "notes": str},
         order_by="day_of_week ASC",
     ),
     # --- Email accounts (registry; live connect added later) ---
     Entity(
         "email_accounts",
-        ["email", "provider", "purpose", "auth_type", "imap_host", "imap_port",
-         "status", "active", "notes"],
+        {"email": str, "provider": str, "purpose": str, "auth_type": str, "imap_host": str, "imap_port": int,
+         "status": str, "active": bool, "notes": str},
         order_by="provider ASC, email ASC",
     ),
     # --- Calendar accounts ---
     Entity(
         "calendar_accounts",
-        ["email", "provider", "status", "active", "notes"],
+        {"email": str, "provider": str, "status": str, "active": bool, "notes": str},
         order_by="email ASC",
     ),
     # --- Agentic org layer ---
     Entity(
         "teams",
-        ["name", "dimension", "mission", "active"],
+        {"name": str, "dimension": str, "mission": str, "active": bool},
         order_by="name ASC",
     ),
     Entity(
         "agents",
-        ["name", "title", "agent_type", "team_id", "reports_to", "model_tier",
-         "model_id", "system_prompt", "autonomy", "active"],
+        {"name": str, "title": str, "agent_type": str, "team_id": UUID, "reports_to": UUID, "model_tier": str,
+         "model_id": str, "system_prompt": str, "autonomy": str, "active": bool},
         order_by="agent_type ASC, name ASC",
     ),
     Entity(
         "tasks",
-        ["title", "description", "kind", "team_id", "agent_id", "parent_id",
-         "status", "priority", "requires_approval", "result", "error",
-         "model_used", "created_by"],
+        {"title": str, "description": str, "kind": str, "team_id": UUID, "agent_id": UUID, "parent_id": UUID,
+         "status": str, "priority": int, "requires_approval": bool, "result": str, "error": str,
+         "model_used": str, "created_by": str},
         order_by="created_at DESC",
     ),
     Entity(
         "model_routes",
-        ["tier", "provider", "model_id", "temperature", "active", "notes"],
+        {"tier": str, "provider": str, "model_id": str, "temperature": float, "active": bool, "notes": str},
         order_by="tier ASC",
     ),
     Entity(
         "agent_runs",
-        ["task_id", "agent_id", "step", "provider", "model", "role",
-         "tool_name", "content", "tokens"],
+        {"task_id": UUID, "agent_id": UUID, "step": int, "provider": str, "model": str, "role": str,
+         "tool_name": str, "content": str, "tokens": int},
         order_by="created_at DESC",
     ),
 ]
