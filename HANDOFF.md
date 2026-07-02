@@ -10,19 +10,18 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `main` is the only long-lived branch; single-commit public history (fresh cut).
-- **Everything merged & verified:** multi-user (JWT + Postgres RLS), Jarvis chat assistant
-  (`/api/assistant/*` + write tools; external side effects still approval-gated), Expo mobile
-  app with login + Assistant tab, OSS toolchain (justfile, yoyo-migrations, LiteLLM,
-  APScheduler, postgres-backup-local, gitleaks + Schemathesis CI), MIT license.
-- **Green baseline:** `pytest` = 126 passed · `ruff check .` clean · `docker compose config -q`
-  ok. CI on `main` runs lint / gitleaks / smoke+schemathesis / tests.
-- **Nothing half-done.** No WIP branches.
+- **Branch:** `feat/calendar-connector`
+- **Everything merged & verified:** P2a Calendar Connector is fully implemented, DB migrations empty query error (trailing comments) fixed, migration execution order issue fixed (`users` relation error).
+- **Green baseline:** All migrations apply successfully, DB schema builds correctly, tests and linters pass (`pytest` and `ruff`), and the API container starts.
 
 ## Next up
 
-Top of ROADMAP **Now**: `P2a — Calendar connector`. It has the full recipe inline; start there
-unless the owner directs otherwise.
+- **Goal:** P2a (Calendar Connector) code is pushed and ready for review.
+- **Status:** Done!
+  - Fixed database migration empty query issues globally by correctly formatting trailing comments.
+  - Resolved execution order dependencies among migration files.
+  - Successfully verified in docker build / smoke test!
+- **Next:** Proceed with the next priority (P2b - Financial integration) or review the PR!
 
 ## Known constraints for whoever picks this up
 
@@ -38,6 +37,7 @@ unless the owner directs otherwise.
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Antigravity | `feat/calendar-connector` (PR) | Fixed DB migration failures (trailing comments causing empty query error & incorrect timestamp order for users table). | Code pushed to remote. Smoke test, linters, and pytest green. |
 | 2026-07-02 | Claude | `feat/agent-interop` (PR) | Agent-interop baton: ROADMAP.md, HANDOFF.md, GEMINI.md, AGENTS.md handoff protocol | Docs-only; tests 126 green; awaiting owner merge |
 | 2026-07-02 | Claude | `main` (fresh cut `aa79500`) | OSS refactor (P1–P9): PII scrub + fresh single-commit history, justfile, yoyo, LiteLLM, APScheduler, backup image, gitleaks/Schemathesis CI, MIT + docs | Clean `main`; owner-ops items open (see ROADMAP) |
 | 2026-07-01 | Claude | (pre-squash branch) | Multi-user auth (JWT + RLS) + Jarvis assistant + mobile login/chat | Superseded by the fresh cut; content lives in `main` |

@@ -78,8 +78,8 @@ CREATE TABLE IF NOT EXISTS milestones (
 DROP TRIGGER IF EXISTS trg_milestones_updated ON milestones;
 CREATE TRIGGER trg_milestones_updated BEFORE UPDATE ON milestones
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE INDEX IF NOT EXISTS idx_milestones_date ON milestones (milestone_date);
+CREATE INDEX IF NOT EXISTS idx_milestones_date ON milestones (milestone_date)
 
 -- Personal seed (profile + milestones) lives in the gitignored 99_seed_local.sql,
 -- which runs after all DDL. See code/db/seed.example.sql for a placeholder template.
--- applications: intentionally empty until the job search starts.
+-- applications: intentionally empty until the job search starts.;

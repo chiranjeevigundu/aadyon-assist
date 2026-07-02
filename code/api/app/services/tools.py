@@ -63,6 +63,14 @@ _SCHEMAS: dict = {
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    "get_calendar": {
+        "type": "function",
+        "function": {
+            "name": "get_calendar",
+            "description": "Get upcoming calendar events and pending calendar extractions.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     "delegate": {
         "type": "function",
         "function": {
@@ -176,7 +184,7 @@ _BY_TYPE = {
     "team_lead": ["get_snapshot", "propose_action"],
     "employee": ["get_snapshot", "propose_action"],
     # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_calendar"] + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -189,6 +197,8 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
     """Execute a tool. ctx carries task_id/agent_id/team_id (org) or is minimal (assistant)."""
     if name == "get_snapshot":
         return digital_me()
+    if name == "get_calendar":
+        return _get_calendar(args)
     if name == "delegate":
         return _delegate(args, ctx)
     if name == "propose_action":
@@ -267,6 +277,15 @@ def _update_profile(args: dict) -> dict:
     ph = ", ".join(["%s"] * len(data))
     query(f"INSERT INTO profile ({fields}) VALUES ({ph})", tuple(data.values()), commit=True)
     return {"ok": True, "action": "created profile"}
+
+
+def _get_calendar(args: dict) -> dict:
+    rows = query(
+        "SELECT event_date, summary, status FROM calendar_extractions "
+        "WHERE event_date > now() - interval '1 day' "
+        "ORDER BY event_date ASC LIMIT 50"
+    )
+    return {"upcoming_events": rows}
 
 
 # --------------------------------------------------------------------------- org handlers

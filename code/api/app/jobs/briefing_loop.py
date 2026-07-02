@@ -46,6 +46,11 @@ def _daily_run() -> None:
     except Exception as e:  # noqa: BLE001 — a bad mailbox must not kill the briefing
         print(f"[briefing] email sync error: {e}", flush=True)
     try:
+        from app.services.calendar_ingest import sync_all as cal_sync_all
+        print(f"[briefing] calendar sync: {cal_sync_all()}", flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"[briefing] calendar sync error: {e}", flush=True)
+    try:
         print(f"[briefing] wrote {_write_today()}", flush=True)
     except Exception as e:  # noqa: BLE001 — never let the worker die
         print(f"[briefing] error: {e}", flush=True)
