@@ -91,6 +91,18 @@ ENTITIES: list[Entity] = [
         {"email": str, "provider": str, "status": str, "active": bool, "notes": str},
         order_by="email ASC",
     ),
+    # --- Drive accounts & files ---
+    Entity(
+        "drive_accounts",
+        {"email": str, "provider": str, "status": str, "active": bool, "notes": str},
+        order_by="email ASC",
+    ),
+    Entity(
+        "drive_files",
+        {"account_id": UUID, "file_id": str, "file_name": str, "mime_type": str,
+         "web_view_link": str, "size_bytes": int, "status": str},
+        order_by="updated_at DESC",
+    ),
     # --- Agentic org layer ---
     Entity(
         "teams",
