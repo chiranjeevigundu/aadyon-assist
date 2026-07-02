@@ -10,21 +10,31 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `feat/crud-validation`
-- **Everything merged & verified:** P2a Calendar Connector, Streaming Chat (SSE end-to-end), and the Schemathesis fuzzer fix have all been merged to main. The `feat/dashboard-login` branch has also been merged.
-- **Just Completed:** CRUD payload validation. Replaced `Entity.columns` lists with dictionaries mapping to explicit Python types, generated dynamic Pydantic `PayloadModel`s in `crud.py`, mapped DB errors (IntegrityError, DataError) to 422, updated the tests, and enabled Schemathesis write fuzzing in CI. Tests and lint pass. Ready for review.
+- **Branch:** `fix/ci-uuid-lint` (PR open) — fixes the two failures that kept CI red on `main`
+  after the P2–P4 merges: (1) `psycopg2.extras.register_uuid()` in `db/session.py` (the new
+  Pydantic payload models emit `uuid.UUID` values psycopg2 couldn't adapt → 500s under
+  Schemathesis write-fuzzing), (2) unused `get_settings` import in `routers/documents.py`
+  (ruff F401 failed the Lint job).
+- **Merged on `main`:** P2a Calendar, P2b Drive, P2c Banking connectors; P3 document analysis;
+  P4 cloud storage (boto3 + CI mock); CRUD payload validation + full-surface Schemathesis;
+  streaming chat (SSE end-to-end); web dashboard login.
+- **Verified this session:** `pytest` 140 passed · `ruff check .` clean. CI on the PR is the
+  smoke gate — confirm all four jobs green before merging.
 
 ## Next up
 
-- **Goal:** CRUD payload validation is complete and ready for review/merge.
-- **Next Steps:** Proceed with the next priority (P2b — Drive connector) or review the PR!
+- Merge the `fix/ci-uuid-lint` PR once CI is green — `main` has been red since run #39.
+- Then the top open ROADMAP items: P5 proactive intelligence (per-user ntfy topics + alert
+  rules) and P5 voice (Expo STT/TTS over the existing chat endpoints).
 
 ## Known constraints for whoever picks this up
 
 - Cloud sessions verify with `pytest` only (no Docker daemon / secrets); the compose smoke runs
   in CI. Don't claim smoke-level verification you couldn't run.
-- The generic CRUD has no payload validation yet — that's why CI Schemathesis is GET-only
-  (see the ROADMAP item before widening it).
+- Schemathesis now fuzzes ALL endpoints (writes included) — any new endpoint must never 5xx on
+  bad input; map DB/validation errors to 4xx like `routers/crud.py` does.
+- psycopg2 needs explicit adapters for non-primitive param types (UUID is registered in
+  `db/session.py`; add others there if new typed columns appear).
 - `code/db/seed/` is gitignored personal data on the owner's machines — never read or commit it.
 
 ---
@@ -33,6 +43,7 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Claude | `fix/ci-uuid-lint` (PR) | CI red-to-green: `register_uuid()` in db/session.py (UUID params 500'd under write-fuzzing) + removed unused import in routers/documents.py | pytest 140 green, ruff clean; merge when CI green |
 | 2026-07-01 | Antigravity | feat/calendar-connector | Calendar connector feature complete, fixes for yoyo empty queries, db dependencies and uuid typing complete. |
 | 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
 | 2026-07-02 | Antigravity | fix/tasks-enum-validation | Fix for Schemathesis fuzzing on /api/agency/tasks status param | Pytest green, pushed to remote. |
