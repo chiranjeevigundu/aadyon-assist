@@ -5,11 +5,11 @@ deadlines, bills, or subscriptions.
 """
 import base64
 import json
-from pathlib import Path
 from pypdf import PdfReader
 
 from app.db.session import current_user_id, query
 from app.services.llm import chat
+from app.services import storage
 
 SYS_PROMPT = """You are a document analyzer. Extract actionable financial/life items from the document text or image.
 Return a JSON object in this exact format, with NO markdown formatting around it:
@@ -17,9 +17,9 @@ Return a JSON object in this exact format, with NO markdown formatting around it
 If nothing actionable is found, return {"items": []}.
 """
 
-def extract_text_from_pdf(path: Path) -> str:
+def extract_text_from_pdf(fileobj) -> str:
     try:
-        reader = PdfReader(str(path))
+        reader = PdfReader(fileobj)
         return "\n".join(page.extract_text() for page in reader.pages)
     except Exception as e:
         return f"[PDF parsing failed: {e}]"
@@ -30,19 +30,24 @@ def analyze_document(document_id: str) -> dict:
         return {"error": "document not found"}
         
     doc = rows[0]
-    file_path = Path(doc["storage_path"])
-    if not file_path.exists():
-        return {"error": "file not found on disk"}
+    object_key = doc["storage_path"]
+    
+    import io
+    file_obj = io.BytesIO()
+    try:
+        storage.download_fileobj(object_key, file_obj)
+        file_obj.seek(0)
+    except Exception as e:
+        return {"error": f"failed to download from S3: {e}"}
 
     messages = [{"role": "system", "content": SYS_PROMPT}]
     
     mime_type = doc.get("mime_type", "")
     if mime_type == "application/pdf":
-        text = extract_text_from_pdf(file_path)
+        text = extract_text_from_pdf(file_obj)
         messages.append({"role": "user", "content": f"Document filename: {doc['filename']}\n\n{text}"})
     elif mime_type.startswith("image/"):
-        with open(file_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("utf-8")
+        b64 = base64.b64encode(file_obj.read()).decode("utf-8")
         messages.append({
             "role": "user", 
             "content": [
@@ -53,7 +58,7 @@ def analyze_document(document_id: str) -> dict:
     else:
         # Fallback to reading as text if possible, else error
         try:
-            text = file_path.read_text(errors="replace")
+            text = file_obj.read().decode("utf-8", errors="replace")
             messages.append({"role": "user", "content": f"Document filename: {doc['filename']}\n\n{text}"})
         except Exception:
             return {"error": f"unsupported mime type: {mime_type}"}

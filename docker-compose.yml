@@ -49,6 +49,8 @@ services:
     secrets:
       - db_password
       - jwt_secret            # signing key for multi-user auth tokens
+      - s3_access_key
+      - s3_secret_key
     volumes:
       - ./artifacts:/srv/artifacts
       - ./code/dashboard:/srv/dashboard
@@ -81,8 +83,11 @@ services:
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
       - db_password
+      - s3_access_key
+      - s3_secret_key
     volumes:
       - ./artifacts:/srv/artifacts
+      - ./data/exports:/srv/backups
     command: ["python", "-m", "app.jobs.briefing_loop"]
     depends_on:
       db:
@@ -103,6 +108,8 @@ services:
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
       - db_password
+      - s3_access_key
+      - s3_secret_key
     volumes:
       - ./artifacts:/srv/artifacts
     extra_hosts:
@@ -162,3 +169,7 @@ secrets:
     file: ./secrets/db_password.txt
   jwt_secret:
     file: ./secrets/jwt_secret.txt
+  s3_access_key:
+    file: ./secrets/s3_access_key.txt
+  s3_secret_key:
+    file: ./secrets/s3_secret_key.txt
