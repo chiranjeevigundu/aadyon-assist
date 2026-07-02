@@ -1,6 +1,8 @@
 # Copilot / AI agent instructions
 
 Full operating manual: **[AGENTS.md](../AGENTS.md)**. Architecture: **[SYSTEM.md](../SYSTEM.md)**.
+Current state / next work (agents hand off in turns): **[HANDOFF.md](../HANDOFF.md)** and
+**[ROADMAP.md](../ROADMAP.md)** — update HANDOFF.md at session end.
 
 This is Aadyon Assist — a self-hosted, multi-user life-ops platform (Postgres + FastAPI +
 Docker) with a conversational assistant, typically reached over a private tailnet. One Postgres
