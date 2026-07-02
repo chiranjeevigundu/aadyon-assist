@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.routers import agency, assistant, auth, dashboard, email, system, calendar, drive
+from app.routers import agency, assistant, auth, dashboard, email, system, calendar, drive, bank
 from app.routers.auth import get_current_user
 from app.routers.crud import CRUD_ROUTERS
 
@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
     # Public: auth (login/signup), health, and the dashboard HTML shells + static.
     app.include_router(auth.router)
     app.include_router(system.router)  # /api/health is public; data routes self-guard
+
     app.include_router(dashboard.router)
 
     # Protected: every per-user data + action router requires a valid user, which
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
     app.include_router(email.router, dependencies=guard)
     app.include_router(calendar.router, dependencies=guard)
     app.include_router(drive.router, dependencies=guard)
+    app.include_router(bank.router, dependencies=guard)
     app.include_router(assistant.router, dependencies=guard)
     for r in CRUD_ROUTERS:
         app.include_router(r, dependencies=guard)

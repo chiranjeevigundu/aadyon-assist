@@ -71,6 +71,14 @@ _SCHEMAS: dict = {
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    "get_transactions": {
+        "type": "function",
+        "function": {
+            "name": "get_transactions",
+            "description": "Get pending bank transactions waiting in the review queue.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     "delegate": {
         "type": "function",
         "function": {
@@ -184,7 +192,7 @@ _BY_TYPE = {
     "team_lead": ["get_snapshot", "propose_action"],
     "employee": ["get_snapshot", "propose_action"],
     # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot", "get_calendar"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_calendar", "get_transactions"] + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -199,6 +207,8 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
         return digital_me()
     if name == "get_calendar":
         return _get_calendar(args)
+    if name == "get_transactions":
+        return _get_transactions(args)
     if name == "delegate":
         return _delegate(args, ctx)
     if name == "propose_action":
@@ -286,6 +296,15 @@ def _get_calendar(args: dict) -> dict:
         "ORDER BY event_date ASC LIMIT 50"
     )
     return {"upcoming_events": rows}
+
+
+def _get_transactions(args: dict) -> dict:
+    rows = query(
+        "SELECT transaction_id, date, amount, merchant, category FROM bank_transactions "
+        "WHERE status = 'pending' "
+        "ORDER BY date DESC LIMIT 50"
+    )
+    return {"pending_transactions": rows}
 
 
 # --------------------------------------------------------------------------- org handlers
