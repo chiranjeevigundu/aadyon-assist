@@ -21,6 +21,8 @@ class Settings:
         # Worker / briefing settings.
         self.artifacts_dir = Path(os.getenv("ARTIFACTS_DIR", "/srv/artifacts"))
         self.briefing_hour = int(os.getenv("BRIEFING_HOUR", "7"))
+        # Proactive alerts: look-ahead window in days for deadline/bill pushes.
+        self.alert_days = int(os.getenv("ALERT_DAYS", "3"))
         self.tz = os.getenv("TZ", "UTC")
 
         # --- Cloud Storage (S3-compatible) ---
