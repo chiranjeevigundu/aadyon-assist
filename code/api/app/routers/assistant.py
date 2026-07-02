@@ -76,21 +76,11 @@ def chat_stream(payload: dict):
 
     def gen():
         try:
-            result = assistant.run(cid, text)
+            for chunk in assistant.run_stream(cid, text):
+                yield _sse(chunk)
         except assistant.ConversationNotFound:
             yield _sse({"error": "conversation not found"})
-            return
         except LLMError as e:
             yield _sse({"error": str(e)})
-            return
-        reply = result.get("reply", "")
-        for word in reply.split(" "):
-            yield _sse({"delta": word + " "})
-        yield _sse({
-            "done": True,
-            "conversation_id": cid,
-            "proposals": result.get("proposals", []),
-            "actions": result.get("actions", []),
-        })
 
     return StreamingResponse(gen(), media_type="text/event-stream")

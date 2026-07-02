@@ -138,3 +138,86 @@ def run(conversation_id, user_text: str) -> dict:
     reply = "(I took several steps but ran out of room — ask me to continue.)"
     _save(conversation_id, "assistant", reply)
     return {"reply": reply, "proposals": proposals, "actions": actions}
+
+
+def run_stream(conversation_id, user_text: str):
+    """Streaming variant of run(). Yields {"delta": ...} and {"done": True, ...}.
+    """
+    _require_conversation(conversation_id)
+    _save(conversation_id, "user", user_text)
+
+    route = routing.resolve("reasoning")
+    provider, model = route["provider"], route["model"]
+    tool_schemas = tools.schemas_for(_ASSISTANT_TYPE) if provider == "openrouter" else None
+
+    messages = [{"role": "system", "content": _system_prompt()}] + _load_history(conversation_id)
+    proposals: list[dict] = []
+    actions: list[str] = []
+    ctx = {"user_id": current_user_id()}
+
+    if not tool_schemas:
+        resp = chat(provider, model, messages, None, route["temperature"], stream=True)
+        content_accum = ""
+        for chunk in resp:
+            delta = chunk.choices[0].delta
+            if getattr(delta, "content", None):
+                content_accum += delta.content
+                yield {"delta": delta.content}
+        reply = content_accum or "(no reply)"
+        _save(conversation_id, "assistant", reply)
+        yield {"done": True, "conversation_id": conversation_id, "proposals": proposals, "actions": actions}
+        return
+
+    for _step in range(get_settings().agent_max_steps):
+        resp = chat(provider, model, messages, tool_schemas, route["temperature"], stream=True)
+        
+        tool_calls_dict = {}
+        content_accum = ""
+        
+        for chunk in resp:
+            delta = chunk.choices[0].delta
+            if getattr(delta, "content", None):
+                content_accum += delta.content
+                yield {"delta": delta.content}
+                
+            if getattr(delta, "tool_calls", None):
+                for tc in delta.tool_calls:
+                    idx = tc.index
+                    if idx not in tool_calls_dict:
+                        tool_calls_dict[idx] = {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {"name": tc.function.name, "arguments": ""}
+                        }
+                    if tc.function.arguments:
+                        tool_calls_dict[idx]["function"]["arguments"] += tc.function.arguments
+
+        tool_calls = list(tool_calls_dict.values()) if tool_calls_dict else []
+
+        if not tool_calls:
+            reply = content_accum or "(no reply)"
+            _save(conversation_id, "assistant", reply)
+            yield {"done": True, "conversation_id": conversation_id, "proposals": proposals, "actions": actions}
+            return
+
+        _save(conversation_id, "assistant", content_accum or None, tool_calls=tool_calls)
+        messages.append({"role": "assistant", "content": content_accum or None, "tool_calls": tool_calls})
+        
+        for tc in tool_calls:
+            name = tc["function"]["name"]
+            try:
+                args = json.loads(tc["function"].get("arguments") or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            result = tools.dispatch(name, args, ctx)
+            if name == "propose_action" and result.get("proposal_id"):
+                proposals.append({"id": result["proposal_id"], "title": args.get("title")})
+            elif result.get("ok"):
+                actions.append(result.get("action"))
+            payload = json.dumps(result, default=str)
+            _save(conversation_id, "tool", content=payload, tool_call_id=tc["id"], tool_name=name)
+            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": payload})
+
+    reply = "(I took several steps but ran out of room — ask me to continue.)"
+    _save(conversation_id, "assistant", reply)
+    yield {"delta": reply, "done": True, "conversation_id": conversation_id, "proposals": proposals, "actions": actions}

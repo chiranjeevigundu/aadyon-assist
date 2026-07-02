@@ -42,15 +42,17 @@ def health() -> dict:
 
 
 def chat(provider: str, model: str, messages: list[dict],
-         tools: list | None = None, temperature: float = 0.2) -> dict:
+         tools: list | None = None, temperature: float = 0.2, stream: bool = False) -> dict | object:
     """Return a normalized OpenAI-style response:
     {"message": {...}, "usage": {...}, "provider", "model"}.
+    If stream=True, returns the LiteLLM stream generator directly.
     """
     s = get_settings()
     kwargs: dict = {
         "messages": messages,
         "temperature": temperature,
         "num_retries": 2,
+        "stream": stream,
     }
 
     if provider == "ollama":
@@ -77,6 +79,9 @@ def chat(provider: str, model: str, messages: list[dict],
         resp = litellm.completion(**kwargs)
     except Exception as e:  # litellm raises provider-specific exception classes
         raise LLMError(f"{provider} request failed: {e}") from e
+
+    if stream:
+        return resp
 
     msg = resp.choices[0].message.model_dump()
     # Match the previous wire shape: no tool_calls key unless calls were made.
