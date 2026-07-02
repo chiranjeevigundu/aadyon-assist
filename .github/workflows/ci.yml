@@ -36,6 +36,8 @@ jobs:
         run: |
           mkdir -p secrets && printf 'ci' > secrets/db_password.txt
           printf 'ci' > secrets/jwt_secret.txt
+          printf 'ci' > secrets/s3_access_key.txt
+          printf 'ci' > secrets/s3_secret_key.txt
           printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
           docker compose config -q
           echo "compose config valid"
@@ -61,6 +63,8 @@ jobs:
           mkdir -p secrets
           printf 'ci-test-password' > secrets/db_password.txt
           printf 'ci-test-jwt-secret' > secrets/jwt_secret.txt
+          printf 'ci' > secrets/s3_access_key.txt
+          printf 'ci' > secrets/s3_secret_key.txt
           printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\n' > .env
       - name: Build & start db + migrations + api (healthcheck-gated)
         run: docker compose up -d --build --wait db migrate api
