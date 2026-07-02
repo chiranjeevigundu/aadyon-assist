@@ -33,7 +33,7 @@ def _write_today() -> str:
         (s.artifacts_dir / f"briefing-latest-{short}.md").write_text(md, encoding="utf-8")
         if i == 0:
             (s.artifacts_dir / "briefing-latest.md").write_text(md, encoding="utf-8")
-        push_briefing(md)  # no-op if NTFY_TOPIC unset
+        push_briefing(uid, md)  # no-op if NTFY_TOPIC unset
         written.append(short)
     return f"{len(written)} briefing(s): {', '.join(written) or 'none'}"
 
@@ -54,6 +54,12 @@ def _daily_run() -> None:
         print(f"[briefing] wrote {_write_today()}", flush=True)
     except Exception as e:  # noqa: BLE001 — never let the worker die
         print(f"[briefing] error: {e}", flush=True)
+
+    try:
+        from app.services.proactive import evaluate_rules
+        print(f"[briefing] proactive alerts: {evaluate_rules()}", flush=True)
+    except Exception as e:
+        print(f"[briefing] proactive alerts error: {e}", flush=True)
 
 
     try:

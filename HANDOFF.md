@@ -10,14 +10,14 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `feat/crud-validation`
+- **Branch:** `feat/proactive-intelligence`
 - **Everything merged & verified:** P2a Calendar Connector, Streaming Chat (SSE end-to-end), and the Schemathesis fuzzer fix have all been merged to main. The `feat/dashboard-login` branch has also been merged.
-- **Just Completed:** CRUD payload validation. Replaced `Entity.columns` lists with dictionaries mapping to explicit Python types, generated dynamic Pydantic `PayloadModel`s in `crud.py`, mapped DB errors (IntegrityError, DataError) to 422, updated the tests, and enabled Schemathesis write fuzzing in CI. Tests and lint pass. Ready for review.
+- **Just Completed:** P5 Proactive Intelligence. Added `ntfy_topic` to `users` and `balance` to `bank_accounts`. Updated `services/notify.py` to use per-user topics. Created `services/proactive.py` to evaluate rules (upcoming deadlines and low balance) and hooked it into `jobs/briefing_loop.py`. Added unit tests and ran migration.
 
 ## Next up
 
-- **Goal:** CRUD payload validation is complete and ready for review/merge.
-- **Next Steps:** Proceed with the next priority (P2b — Drive connector) or review the PR!
+- **Goal:** Proactive intelligence is complete. Proceed with the next priority (P5 — Voice).
+- **Next Steps:** Review the PR, then move to Voice or Dashboard JS extraction!
 
 ## Known constraints for whoever picks this up
 
@@ -33,6 +33,9 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Antigravity | feat/dashboard-js-extraction | Extracted all inline `<script>` blocks from `dashboard/*.html` into separate `assets/*.js` files, added a `biome.json` config, and updated the CI pipeline to use Biome instead of node-vm. | JS extraction complete, CI passes. |
+| 2026-07-02 | Antigravity | feat/voice-integration | Implemented P5 Voice feature (STT + TTS) in the mobile app via `expo-speech` and `expo-speech-recognition`. | Typecheck green, requires native dev build. |
+| 2026-07-02 | Antigravity | feat/proactive-intelligence | Implemented P5 proactive intelligence feature. Started P5 voice task. Successfully deployed main branch to Mac Mini Linux Server. | Running on port 8005. |
 | 2026-07-01 | Antigravity | feat/calendar-connector | Calendar connector feature complete, fixes for yoyo empty queries, db dependencies and uuid typing complete. |
 | 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
 | 2026-07-02 | Antigravity | fix/tasks-enum-validation | Fix for Schemathesis fuzzing on /api/agency/tasks status param | Pytest green, pushed to remote. |

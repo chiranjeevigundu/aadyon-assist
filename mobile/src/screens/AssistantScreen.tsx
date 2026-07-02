@@ -5,6 +5,8 @@ import {
 } from "react-native";
 import { api, ApiError, ChatResult } from "../api";
 import { theme } from "../theme";
+import * as Speech from "expo-speech";
+import { useSpeechRecognitionEvent, ExpoSpeechRecognitionModule } from "expo-speech-recognition";
 
 type Msg = {
   id: string;
@@ -32,14 +34,49 @@ export default function AssistantScreen() {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recognizing, setRecognizing] = useState(false);
   const convId = useRef<string | undefined>(undefined);
   const listRef = useRef<FlatList<Msg>>(null);
 
   const scroll = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
 
+  useSpeechRecognitionEvent("start", () => setRecognizing(true));
+  useSpeechRecognitionEvent("end", () => setRecognizing(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const transcript = event.results[0]?.transcript || "";
+    setInput(transcript);
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    console.log("Speech recognition error:", event.error, event.message);
+    setRecognizing(false);
+  });
+
+  const toggleListening = async () => {
+    if (recognizing) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!result.granted) {
+      alert("Microphone permission is required for voice commands.");
+      return;
+    }
+    Speech.stop();
+    ExpoSpeechRecognitionModule.start({
+      lang: "en-US",
+      interimResults: true,
+      maxAlternatives: 1,
+      continuous: false,
+    });
+  };
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || busy) return;
+    
+    if (recognizing) ExpoSpeechRecognitionModule.stop();
+    Speech.stop();
+    
     setInput("");
     setMessages((m) => [...m, { id: nextId(), role: "user", text }]);
     setBusy(true);
@@ -66,6 +103,10 @@ export default function AssistantScreen() {
             : msg
         )
       );
+      
+      if (res.reply) {
+        Speech.speak(res.reply);
+      }
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : String(e);
       setMessages((m) => [...m, { id: nextId(), role: "assistant", text: `⚠️ ${msg}` }]);
@@ -73,7 +114,7 @@ export default function AssistantScreen() {
       setBusy(false);
       scroll();
     }
-  }, [input, busy]);
+  }, [input, busy, recognizing]);
 
   return (
     <KeyboardAvoidingView
@@ -96,6 +137,9 @@ export default function AssistantScreen() {
         </View>
       ) : null}
       <View style={s.inputBar}>
+        <TouchableOpacity style={s.micBtn} onPress={toggleListening} disabled={busy}>
+          <Text style={[s.micText, recognizing && s.micActiveText]}>🎙</Text>
+        </TouchableOpacity>
         <TextInput
           value={input}
           onChangeText={setInput}
@@ -156,6 +200,14 @@ const s = StyleSheet.create({
     borderTopColor: theme.border,
     backgroundColor: theme.card,
   },
+  micBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micText: { color: theme.textDim, fontSize: 24 },
+  micActiveText: { color: theme.watch },
   input: {
     flex: 1,
     backgroundColor: theme.cardAlt,
