@@ -79,6 +79,14 @@ _SCHEMAS: dict = {
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    "get_document_extractions": {
+        "type": "function",
+        "function": {
+            "name": "get_document_extractions",
+            "description": "Get pending items extracted from uploaded documents waiting in the review queue.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     "delegate": {
         "type": "function",
         "function": {
@@ -192,7 +200,7 @@ _BY_TYPE = {
     "team_lead": ["get_snapshot", "propose_action"],
     "employee": ["get_snapshot", "propose_action"],
     # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot", "get_calendar", "get_transactions"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions"] + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -209,6 +217,8 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
         return _get_calendar(args)
     if name == "get_transactions":
         return _get_transactions(args)
+    if name == "get_document_extractions":
+        return _get_document_extractions(args)
     if name == "delegate":
         return _delegate(args, ctx)
     if name == "propose_action":
@@ -305,6 +315,16 @@ def _get_transactions(args: dict) -> dict:
         "ORDER BY date DESC LIMIT 50"
     )
     return {"pending_transactions": rows}
+
+
+def _get_document_extractions(args: dict) -> dict:
+    rows = query(
+        "SELECT e.id, e.kind, e.summary, e.payload, d.filename FROM document_extractions e "
+        "JOIN documents d ON d.id = e.document_id "
+        "WHERE e.status = 'pending' "
+        "ORDER BY e.created_at DESC LIMIT 50"
+    )
+    return {"pending_extractions": rows}
 
 
 # --------------------------------------------------------------------------- org handlers
