@@ -5,8 +5,7 @@ import {
 } from "react-native";
 import { api, ApiError, ChatResult } from "../api";
 import { theme } from "../theme";
-import * as Speech from "expo-speech";
-import { useSpeechRecognitionEvent, ExpoSpeechRecognitionModule } from "expo-speech-recognition";
+import { listenOnce, speak, sttAvailable, stopListening, stopSpeaking, ttsAvailable } from "../voice";
 
 type Msg = {
   id: string;
@@ -34,49 +33,16 @@ export default function AssistantScreen() {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [recognizing, setRecognizing] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speakReplies, setSpeakReplies] = useState(false);
   const convId = useRef<string | undefined>(undefined);
   const listRef = useRef<FlatList<Msg>>(null);
 
   const scroll = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
 
-  useSpeechRecognitionEvent("start", () => setRecognizing(true));
-  useSpeechRecognitionEvent("end", () => setRecognizing(false));
-  useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results[0]?.transcript || "";
-    setInput(transcript);
-  });
-  useSpeechRecognitionEvent("error", (event) => {
-    console.log("Speech recognition error:", event.error, event.message);
-    setRecognizing(false);
-  });
-
-  const toggleListening = async () => {
-    if (recognizing) {
-      ExpoSpeechRecognitionModule.stop();
-      return;
-    }
-    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!result.granted) {
-      alert("Microphone permission is required for voice commands.");
-      return;
-    }
-    Speech.stop();
-    ExpoSpeechRecognitionModule.start({
-      lang: "en-US",
-      interimResults: true,
-      maxAlternatives: 1,
-      continuous: false,
-    });
-  };
-
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || busy) return;
-    
-    if (recognizing) ExpoSpeechRecognitionModule.stop();
-    Speech.stop();
-    
     setInput("");
     setMessages((m) => [...m, { id: nextId(), role: "user", text }]);
     setBusy(true);
@@ -96,17 +62,18 @@ export default function AssistantScreen() {
       });
       
       convId.current = res.conversation_id;
-      setMessages((m) =>
-        m.map((msg) =>
+      setMessages((m) => {
+        const updated = m.map((msg) =>
           msg.id === botId
             ? { ...msg, actions: res.actions, proposals: res.proposals }
             : msg
-        )
-      );
-      
-      if (res.reply) {
-        Speech.speak(res.reply);
-      }
+        );
+        if (speakReplies) {
+          const reply = updated.find((msg) => msg.id === botId);
+          if (reply?.text) speak(reply.text);
+        }
+        return updated;
+      });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : String(e);
       setMessages((m) => [...m, { id: nextId(), role: "assistant", text: `⚠️ ${msg}` }]);
@@ -114,7 +81,21 @@ export default function AssistantScreen() {
       setBusy(false);
       scroll();
     }
-  }, [input, busy, recognizing]);
+  }, [input, busy, speakReplies]);
+
+  const mic = useCallback(async () => {
+    if (listening) {
+      stopListening();
+      return;
+    }
+    setListening(true);
+    try {
+      const heard = await listenOnce((partial) => setInput(partial));
+      if (heard) setInput(heard);
+    } finally {
+      setListening(false);
+    }
+  }, [listening]);
 
   return (
     <KeyboardAvoidingView
@@ -137,9 +118,17 @@ export default function AssistantScreen() {
         </View>
       ) : null}
       <View style={s.inputBar}>
-        <TouchableOpacity style={s.micBtn} onPress={toggleListening} disabled={busy}>
-          <Text style={[s.micText, recognizing && s.micActiveText]}>🎙</Text>
-        </TouchableOpacity>
+        {ttsAvailable() ? (
+          <TouchableOpacity
+            style={[s.voiceBtn, speakReplies && s.voiceBtnOn]}
+            onPress={() => {
+              if (speakReplies) stopSpeaking();
+              setSpeakReplies(!speakReplies);
+            }}
+          >
+            <Text style={s.voiceIcon}>{speakReplies ? "🔊" : "🔈"}</Text>
+          </TouchableOpacity>
+        ) : null}
         <TextInput
           value={input}
           onChangeText={setInput}
@@ -149,6 +138,15 @@ export default function AssistantScreen() {
           multiline
           onSubmitEditing={send}
         />
+        {sttAvailable() ? (
+          <TouchableOpacity
+            style={[s.voiceBtn, listening && s.voiceBtnLive]}
+            onPress={mic}
+            disabled={busy}
+          >
+            <Text style={s.voiceIcon}>{listening ? "⏹" : "🎤"}</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={s.sendBtn} onPress={send} disabled={busy || !input.trim()}>
           <Text style={s.sendText}>↑</Text>
         </TouchableOpacity>
@@ -200,14 +198,6 @@ const s = StyleSheet.create({
     borderTopColor: theme.border,
     backgroundColor: theme.card,
   },
-  micBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  micText: { color: theme.textDim, fontSize: 24 },
-  micActiveText: { color: theme.watch },
   input: {
     flex: 1,
     backgroundColor: theme.cardAlt,
@@ -229,4 +219,11 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   sendText: { color: "#06122a", fontSize: 20, fontWeight: "900" },
+  voiceBtn: {
+    width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: theme.border, backgroundColor: theme.cardAlt,
+  },
+  voiceBtnOn: { borderColor: theme.accent },
+  voiceBtnLive: { borderColor: theme.bad, backgroundColor: "#3a1520" },
+  voiceIcon: { fontSize: 18 },
 });

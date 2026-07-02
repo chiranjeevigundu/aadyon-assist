@@ -49,7 +49,9 @@ def make_router(entity: Entity) -> APIRouter:
                 f"INSERT INTO {table} ({cols}) VALUES ({ph}) RETURNING *",
                 tuple(data.values()), commit=True,
             )
-        except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError) as e:
+        # ValueError: psycopg2's adaptation layer raises it for values Postgres
+        # can't hold (e.g. NUL bytes in text) — invalid input, not a server bug.
+        except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError, ValueError) as e:
             raise HTTPException(422, str(e)) from e
         return rows[0]
 
@@ -64,7 +66,8 @@ def make_router(entity: Entity) -> APIRouter:
                 f"UPDATE {table} SET {sets} WHERE id = %s RETURNING *",
                 tuple(data.values()) + (str(row_id),), commit=True,
             )
-        except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError) as e:
+        # ValueError: see create_row — psycopg2 adaptation failures are bad input.
+        except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError, ValueError) as e:
             raise HTTPException(422, str(e)) from e
         if not rows:
             raise HTTPException(404, "Not found")

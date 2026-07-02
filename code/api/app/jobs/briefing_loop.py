@@ -12,9 +12,10 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.core.config import get_settings
-from app.db.session import active_user_ids, set_current_user
+from app.db.session import active_user_ids, query_unscoped, set_current_user
 from app.services.briefing import build_briefing
-from app.services.notify import push_briefing
+from app.services.alerts import alerts_markdown, build_alerts
+from app.services.notify import push_alerts, push_briefing
 
 
 def _write_today() -> str:
@@ -33,7 +34,13 @@ def _write_today() -> str:
         (s.artifacts_dir / f"briefing-latest-{short}.md").write_text(md, encoding="utf-8")
         if i == 0:
             (s.artifacts_dir / "briefing-latest.md").write_text(md, encoding="utf-8")
-        push_briefing(uid, md)  # no-op if NTFY_TOPIC unset
+        # Per-user topic when set (users.ntfy_topic); global NTFY_TOPIC otherwise.
+        row = query_unscoped("SELECT ntfy_topic FROM users WHERE id = %s", (uid,))
+        topic = (row[0].get("ntfy_topic") or None) if row else None
+        push_briefing(md, topic=topic)  # no-op if no topic configured
+        alerts = build_alerts()
+        if alerts:
+            push_alerts(alerts_markdown(alerts), topic=topic)
         written.append(short)
     return f"{len(written)} briefing(s): {', '.join(written) or 'none'}"
 
@@ -54,12 +61,6 @@ def _daily_run() -> None:
         print(f"[briefing] wrote {_write_today()}", flush=True)
     except Exception as e:  # noqa: BLE001 — never let the worker die
         print(f"[briefing] error: {e}", flush=True)
-
-    try:
-        from app.services.proactive import evaluate_rules
-        print(f"[briefing] proactive alerts: {evaluate_rules()}", flush=True)
-    except Exception as e:
-        print(f"[briefing] proactive alerts error: {e}", flush=True)
 
 
     try:

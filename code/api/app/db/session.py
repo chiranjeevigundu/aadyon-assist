@@ -17,6 +17,11 @@ from psycopg2.pool import SimpleConnectionPool
 
 from app.core.config import get_settings
 
+# Pydantic-validated payloads (see routers/crud.py) carry real uuid.UUID values;
+# psycopg2 can't adapt those unless the UUID adapter is registered. Process-wide,
+# once, at import time — otherwise every UUID param raises "can't adapt type 'UUID'".
+psycopg2.extras.register_uuid()
+
 _pool: SimpleConnectionPool | None = None
 
 # The current request's user id (str UUID) or None. Set by the auth dependency

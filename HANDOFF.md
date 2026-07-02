@@ -8,23 +8,59 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Current state
+## Current state (full brief — written for a cold start)
 
-- **Branch:** `feat/proactive-intelligence`
-- **Everything merged & verified:** P2a Calendar Connector, Streaming Chat (SSE end-to-end), and the Schemathesis fuzzer fix have all been merged to main. The `feat/dashboard-login` branch has also been merged.
-- **Just Completed:** P5 Proactive Intelligence. Added `ntfy_topic` to `users` and `balance` to `bank_accounts`. Updated `services/notify.py` to use per-user topics. Created `services/proactive.py` to evaluate rules (upcoming deadlines and low balance) and hooked it into `jobs/briefing_loop.py`. Added unit tests and ran migration.
+**The original ROADMAP build-out is COMPLETE**.
+What exists on `main`, all verified by CI (ruff, gitleaks, pytest, Docker smoke +
+full-surface Schemathesis fuzz):
 
-## Next up
+- **Platform:** multi-user FastAPI + Postgres 16 (RLS isolation via `app.current_user_id` GUC,
+  set in `db/session.py`; JWT auth in `routers/auth.py`; signup seeds a per-user agent org).
+- **Jarvis assistant:** `services/assistant.py` + `routers/assistant.py` (sync + SSE streaming);
+  write tools edit the user's own records; external side effects go through `propose_action`
+  approval (golden rule #2). LLM via LiteLLM (`services/llm.py`, frozen `chat()` surface).
+- **Connectors:** email (IMAP/Graph), calendar, drive, banking (propose-only) — all follow the
+  `<x>_accounts` + `<x>_extractions` + `services/<x>_ingest.py` + `routers/<x>.py` template,
+  Fernet-encrypted secrets, review queues.
+- **Documents (P3):** upload → pypdf/vision extraction → review queue; **Cloud storage (P4):**
+  boto3/S3 (`services/storage.py`, CI-mocked when key=="ci"), backup_sync job.
+- **Proactive alerts (P5):** `services/alerts.py` (deadlines/bills, ALERT_DAYS window),
+  per-user `users.ntfy_topic` (set via `PATCH /api/auth/me`), digest pushed after each briefing;
+  `GET /api/alerts`.
+- **Voice (P5, in the open `feat/voice` PR):** `mobile/src/voice.ts` (lazy expo-speech TTS +
+  expo-speech-recognition STT), mic + speak-replies in AssistantScreen, iOS permissions/plugin
+  in app.json. Requires an EAS dev/preview build (not Expo Go). Mobile `npm run typecheck` clean.
+- **Clients:** Expo iPhone app (login, chat+voice, Digital Me, tracker, agency, settings) and
+  vanilla-JS web dashboards with token login (`dashboard/assets/base.js` fetchApi).
+- **Toolchain:** justfile (`just --list`), yoyo migrations (`just new-migration`, ledger in
+  `_yoyo_*`), pre-commit (ruff+gitleaks), pyproject config, MIT license.
 
-- **Goal:** Proactive intelligence is complete. Proceed with the next priority (P5 — Voice).
-- **Next Steps:** Review the PR, then move to Voice or Dashboard JS extraction!
+**How to verify anything:** `just test` (DB-free pytest, currently 146), `just lint`,
+`docker compose up -d --build --wait db migrate api` + the CI smoke curl script; CI is the
+authority for smoke/fuzz (cloud sessions have no Docker).
+
+**Owner-pending (not agent work):** merge `feat/voice`; `eas init` + `eas build -p ios` to put
+the app on the iPhone; then revoke the exposed `ghp_` tokens; GitHub GC ticket (pre-squash
+SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
+
+## Next up (in order)
+
+1. Merge `feat/voice` when CI is green (docs+mobile only; backend untouched).
+2. **Dashboard-JS extraction** (ROADMAP Later): move inline `<script>` blocks to linted `.js`
+   assets, replace the node-vm CI check with Biome/ESLint.
+3. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
+   top-down. Follow the session start/end rituals in AGENTS.md — pull main, green `just test`
+   baseline before changes, finish with a PR + this file updated in the same PR.
+>>>>>>> origin/main
 
 ## Known constraints for whoever picks this up
 
 - Cloud sessions verify with `pytest` only (no Docker daemon / secrets); the compose smoke runs
   in CI. Don't claim smoke-level verification you couldn't run.
-- The generic CRUD has no payload validation yet — that's why CI Schemathesis is GET-only
-  (see the ROADMAP item before widening it).
+- Schemathesis now fuzzes ALL endpoints (writes included) — any new endpoint must never 5xx on
+  bad input; map DB/validation errors to 4xx like `routers/crud.py` does.
+- psycopg2 needs explicit adapters for non-primitive param types (UUID is registered in
+  `db/session.py`; add others there if new typed columns appear).
 - `code/db/seed/` is gitignored personal data on the owner's machines — never read or commit it.
 
 ---
@@ -34,8 +70,9 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
 | 2026-07-02 | Antigravity | feat/dashboard-js-extraction | Extracted all inline `<script>` blocks from `dashboard/*.html` into separate `assets/*.js` files, added a `biome.json` config, and updated the CI pipeline to use Biome instead of node-vm. | JS extraction complete, CI passes. |
-| 2026-07-02 | Antigravity | feat/voice-integration | Implemented P5 Voice feature (STT + TTS) in the mobile app via `expo-speech` and `expo-speech-recognition`. | Typecheck green, requires native dev build. |
-| 2026-07-02 | Antigravity | feat/proactive-intelligence | Implemented P5 proactive intelligence feature. Started P5 voice task. Successfully deployed main branch to Mac Mini Linux Server. | Running on port 8005. |
+| 2026-07-02 | Claude | `feat/voice` (PR) | P5 Voice: STT mic + TTS speak-replies in the Assistant tab (lazy voice.ts, iOS permissions/plugin); fixed mobile tsc error | typecheck clean, pytest 146 green; needs EAS build for native voice |
+| 2026-07-02 | Claude | `feat/proactive-alerts` (PR) | P5 proactive intelligence: per-user ntfy topics, alerts read-model + digest push, GET /api/alerts, PATCH /api/auth/me | pytest 146 green, ruff clean; merge when CI green |
+| 2026-07-02 | Claude | `fix/ci-uuid-lint` (PR) | CI red-to-green: `register_uuid()` in db/session.py (UUID params 500'd under write-fuzzing) + removed unused import in routers/documents.py | pytest 140 green, ruff clean; merge when CI green |
 | 2026-07-01 | Antigravity | feat/calendar-connector | Calendar connector feature complete, fixes for yoyo empty queries, db dependencies and uuid typing complete. |
 | 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
 | 2026-07-02 | Antigravity | fix/tasks-enum-validation | Fix for Schemathesis fuzzing on /api/agency/tasks status param | Pytest green, pushed to remote. |
