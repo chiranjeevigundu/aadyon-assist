@@ -3,7 +3,9 @@ description: Aadyon Assist — project rules for AI agents
 alwaysApply: true
 ---
 
-Read **AGENTS.md** at the repo root for the full operating manual before changing code.
+Read **AGENTS.md** at the repo root for the full operating manual before changing code, then
+**HANDOFF.md** (current state — multiple AI tools work here in turns) and **ROADMAP.md**
+(what's next). Update HANDOFF.md at session end.
 
 Non-negotiable rules:
 

@@ -1,8 +1,8 @@
-# CLAUDE.md
+# GEMINI.md
 
-The operating manual for this repo lives in **[AGENTS.md](AGENTS.md)** — read it first, then
-**[HANDOFF.md](HANDOFF.md)** for the current state (multiple AI tools work here in turns) and
-**[ROADMAP.md](ROADMAP.md)** for what's next. End every session by updating HANDOFF.md.
+For Gemini-family agents (Google Antigravity, Gemini CLI, Jules). The operating manual for this
+repo lives in **[AGENTS.md](AGENTS.md)** — read it first, then **[HANDOFF.md](HANDOFF.md)** for
+the current state and **[ROADMAP.md](ROADMAP.md)** for what to work on next.
 
 Quick reminders (full detail in AGENTS.md):
 
@@ -14,4 +14,5 @@ Quick reminders (full detail in AGENTS.md):
 - Routers are generated from `models/tables.py` — add an `Entity`, don't hand-write CRUD.
 - Migrations: `just new-migration <name>` (yoyo, timestamped); apply with `just migrate`.
 - Verify with `just test` and `just lint`; for refactors the API parity check must pass.
+- End every session by updating HANDOFF.md (and ticking ROADMAP.md) in the same PR.
 - Architecture: [SYSTEM.md](SYSTEM.md). Quickstart: [README.md](README.md).
