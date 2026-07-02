@@ -51,7 +51,9 @@ def signup(payload: dict):
             (payload or {}).get("display_name"),
         )
         token = auth.make_token(user["id"])
-    except auth.AuthError as e:
+    # ValueError: psycopg2 rejects values Postgres can't store (e.g. NUL bytes
+    # in email/display_name) — bad input, not a server error.
+    except (auth.AuthError, ValueError) as e:
         raise HTTPException(400, str(e)) from e
     return {"token": token, "user": _public(user)}
 
