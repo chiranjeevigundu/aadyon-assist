@@ -27,6 +27,15 @@
     "android": {
       "package": "me.aadyon.assist"
     },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Aadyon Assist to access the microphone for voice commands",
+          "speechRecognitionPermission": "Allow Aadyon Assist to recognize your speech"
+        }
+      ]
+    ],
     "extra": {
       "defaultApiBase": "http://localhost:8000"
     }

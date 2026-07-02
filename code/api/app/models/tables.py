@@ -106,7 +106,7 @@ ENTITIES: list[Entity] = [
     # --- Bank accounts & transactions ---
     Entity(
         "bank_accounts",
-        {"institution": str, "status": str, "active": bool},
+        {"institution": str, "status": str, "active": bool, "balance": float},
         order_by="institution ASC",
     ),
     Entity(

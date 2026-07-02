@@ -1,0 +1,275 @@
+// Shared helpers ($, esc, money, money2, num) come from base.js.
+const initials = (s) =>
+	(s || "?")
+		.split(/\s+/)
+		.slice(0, 2)
+		.map((w) => w[0] || "")
+		.join("")
+		.toUpperCase();
+
+function scoreColor(s) {
+	if (s >= 75) return "var(--green)";
+	if (s >= 50) return "var(--accent)";
+	if (s >= 25) return "var(--amber)";
+	return "var(--red)";
+}
+function bandPill(s, band) {
+	const c = s >= 75 ? "green" : s >= 50 ? "violet" : s >= 25 ? "amber" : "red";
+	return `<span class="pill ${c}">${esc(band)}</span>`;
+}
+function ring(score, size) {
+	const c = scoreColor(score);
+	return `<div class="ring" style="--p:${score};--c:${c}${size ? `;width:${size}px;height:${size}px` : ""}"><div class="inner"><div class="n">${score}</div><div class="l">/100</div></div></div>`;
+}
+function bar(pct, color) {
+	return `<div class="bar"><span style="width:${Math.max(0, Math.min(100, pct))}%;background:${color || "var(--accent)"}"></span></div>`;
+}
+
+async function load() {
+	const app = document.getElementById("app");
+	let d;
+	try {
+		d = await (await fetchApi("/api/digital-me")).json();
+	} catch (e) {
+		app.innerHTML =
+			'<div class="card">API not reachable. Is the stack up? <code>docker compose up -d</code></div>';
+		return;
+	}
+	app.innerHTML = "";
+	document.getElementById("asof").textContent = "as of " + d.as_of;
+
+	const p = d.profile || {},
+		life = d.life || {},
+		dim = d.dimensions || {};
+	const fin = dim.financial || {},
+		visa = dim.visa || {},
+		career = dim.career || {},
+		goal = dim.goal || {};
+	const income = d.income || {};
+
+	// ---------- Identity ----------
+	const visaPillClass =
+		visa.score >= 50 ? "green" : visa.score >= 25 ? "amber" : "red";
+	app.append(
+		$(`<div class="card"><div class="id">
+    <div class="avatar">${initials(p.full_name)}</div>
+    <div style="flex:1;min-width:240px">
+      <div class="name">${esc(p.full_name || "—")}${p.preferred_name ? ` <span class="muted" style="font-size:14px;font-weight:500">(${esc(p.preferred_name)})</span>` : ""}</div>
+      <div class="head">${esc(p.headline || "")}</div>
+      <div class="meta">
+        ${life.age_whole != null ? `<span><b>${life.age_whole}</b> yrs old</span>` : ""}
+        ${p.location ? `<span>📍 <b>${esc(p.location)}</b></span>` : ""}
+        ${p.nationality ? `<span>🌐 ${esc(p.nationality)}</span>` : ""}
+        ${p.visa_type ? `<span><span class="pill ${visaPillClass}">${esc(p.visa_type)}</span></span>` : ""}
+      </div>
+    </div>
+  </div></div>`),
+	);
+
+	// ---------- Overall + dimensions ----------
+	const ov = d.overall || { score: 0, band: "" };
+	const dimCard = (key, label, o) => `<div class="dim">
+      <div class="t">${label}</div>
+      <div class="s" style="color:${scoreColor(o.score)}">${o.score}</div>
+      <div class="b">${bandPill(o.score, o.band)}</div>
+    </div>`;
+	app.append(
+		$(`<div class="card"><div class="hero">
+    <div style="text-align:center">
+      ${ring(ov.score, 120)}
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Overall · ${esc(ov.band)}</div>
+    </div>
+    <div class="dims">
+      ${dimCard("financial", "Financial", fin)}
+      ${dimCard("visa", "Visa / status", visa)}
+      ${dimCard("career", "Career", career)}
+      ${dimCard("goal", "Goal · by 30", goal)}
+    </div>
+  </div></div>`),
+	);
+
+	// ---------- Life since birth ----------
+	if (life.days_alive != null) {
+		app.append(
+			$(`<div class="card"><h2>Life since birth</h2>
+      <div class="bigstats">
+        <div class="big"><div class="v">${num(life.days_alive)}</div><div class="k">days alive · since ${esc(life.birthdate)}</div></div>
+        <div class="big"><div class="v" style="color:var(--violet)">${num(life.days_to_30)}</div><div class="k">days until 30 (${esc(life.thirtieth_birthday)})</div></div>
+        <div class="big"><div class="v">${life.age_years}</div><div class="k">years (of ${life.life_expectancy_years} expected)</div></div>
+        <div class="big"><div class="v">${num(life.weeks_lived)}</div><div class="k">weeks lived · of ~${num(life.weeks_total)}</div></div>
+      </div>
+      <div class="barlbl"><span>Life lived</span><span>${life.life_lived_pct}%</span></div>
+      ${bar(life.life_lived_pct, "var(--accent)")}
+      <div class="barlbl"><span>Progress to 30 (the self-imposed deadline)</span><span>${life.age_progress_to_30_pct}%</span></div>
+      ${bar(life.age_progress_to_30_pct, "var(--violet)")}
+    </div>`),
+		);
+	}
+
+	// ---------- Financial ----------
+	const finDebts = (fin.debts || [])
+		.map((x) => {
+			const u = x.utilization_pct;
+			const emi =
+				x.kind === "emi" && x.term_months
+					? ` <span class="pill violet">EMI ${x.installments_paid || 0}/${x.term_months}</span>`
+					: "";
+			return `<tr><td>${esc(x.name)}${emi}</td><td class="num">${money2(x.balance)}</td><td class="num">${Number(x.apr).toFixed(2)}%</td>
+      <td class="num">${money2(x.est_monthly_interest)}</td>
+      <td class="num">${u == null ? "—" : `<span class="pill ${u >= 90 ? "red" : u >= 50 ? "amber" : "green"}">${u}%</span>`}</td></tr>`;
+		})
+		.join("");
+	app.append(
+		$(`<div class="card"><h2>Financial health</h2>
+    <div class="hero" style="gap:22px;align-items:flex-start">
+      <div style="text-align:center">${ring(fin.score)}<div style="margin-top:6px">${bandPill(fin.score, fin.band)}</div></div>
+      <div style="flex:1;min-width:260px">
+        <div class="stats">
+          <div class="stat"><span class="v">${money(fin.total_debt)}</span><span class="k">total debt</span></div>
+          <div class="stat"><span class="v">${money(fin.monthly_minimums)}</span><span class="k">monthly payments</span></div>
+          <div class="stat"><span class="v" style="color:var(--red)">${money(fin.monthly_interest)}</span><span class="k">interest / month</span></div>
+          <div class="stat"><span class="v">${fin.effective_apr_pct}%</span><span class="k">blended APR</span></div>
+        </div>
+        <div class="comp">
+          <div class="c">utilization<br><b style="color:${scoreColor(fin.components?.utilization)}">${fin.components?.utilization}</b></div>
+          <div class="c">income coverage<br><b style="color:${scoreColor(fin.components?.coverage)}">${fin.components?.coverage}</b></div>
+          <div class="c">interest load<br><b style="color:${scoreColor(fin.components?.interest)}">${fin.components?.interest}</b></div>
+          <div class="c">card utilization<br><b>${fin.weighted_card_utilization_pct}%</b></div>
+        </div>
+      </div>
+    </div>
+    ${finDebts ? `<table style="margin-top:14px"><thead><tr><th>Debt</th><th class="num">Balance</th><th class="num">APR</th><th class="num">Int/mo</th><th class="num">Util</th></tr></thead><tbody>${finDebts}</tbody></table>` : ""}
+  </div>`),
+	);
+
+	// ---------- Work & income ----------
+	if (income.has_jobs) {
+		const jobKind = (k) =>
+			k === "full_time_salary"
+				? "full-time"
+				: k === "part_time_hourly"
+					? "part-time"
+					: k;
+		const jobRows = (income.jobs || [])
+			.map((j) => {
+				const off = j.status !== "active";
+				return `<tr style="${off ? "opacity:.5" : ""}">
+        <td>${esc(j.employer)} ${j.role ? `<span class="muted" style="font-size:12px">· ${esc(j.role)}</span>` : ""}</td>
+        <td><span class="pill ${j.kind === "full_time_salary" ? "violet" : "muted"}">${jobKind(j.kind)}</span></td>
+        <td><span class="pill ${j.status === "active" ? "green" : j.status === "offer" ? "amber" : "muted"}">${esc(j.status)}</span></td>
+        <td class="num">${j.weekly_hours == null ? "—" : j.weekly_hours + "h"}</td>
+        <td class="num">${money(j.monthly_gross)}</td>
+        <td class="num">${money(j.monthly_takehome)}</td></tr>`;
+			})
+			.join("");
+		app.append(
+			$(`<div class="card"><h2>Work &amp; income · projected</h2>
+      <div class="stats" style="margin-bottom:6px">
+        <div class="stat"><span class="v">${money(income.weekly_gross)}</span><span class="k">weekly gross (active)</span></div>
+        <div class="stat"><span class="v">${money(income.monthly_gross)}</span><span class="k">monthly gross (active)</span></div>
+        <div class="stat"><span class="v" style="color:var(--green)">${money(income.monthly_takehome)}</span><span class="k">monthly take-home</span></div>
+        <div class="stat"><span class="v">${money(income.annual_takehome)}</span><span class="k">annual take-home</span></div>
+      </div>
+      <table style="margin-top:10px"><thead><tr><th>Job</th><th>Type</th><th>Status</th><th class="num">Wk hrs</th><th class="num">Mo gross</th><th class="num">Mo take-home</th></tr></thead>
+        <tbody>${jobRows}</tbody></table>
+      <div class="muted" style="font-size:12px;margin-top:8px">Totals count <b>active</b> jobs only — offers and ended jobs are excluded. Part-time pay = weekly schedule × rate. Edit jobs &amp; weekly hours in <a href="/data">Data</a>.</div>
+    </div>`),
+		);
+	}
+
+	// ---------- Visa + Career side by side ----------
+	const wrap = $('<div class="grid2"></div>');
+
+	const nx = visa.next;
+	wrap.append(
+		$(`<div class="card"><h2>Visa / immigration status</h2>
+    <div class="hero" style="gap:20px;align-items:flex-start">
+      <div style="text-align:center">${ring(visa.score)}<div style="margin-top:6px">${bandPill(visa.score, visa.band)}</div></div>
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:14px">${esc(visa.visa_status || "")}</div>
+        <div class="stats" style="margin-top:10px">
+          <div class="stat"><span class="v">${visa.work_auth_days_left == null ? "—" : num(visa.work_auth_days_left)}</span><span class="k">days work-authorized</span></div>
+          <div class="stat"><span class="v">${visa.blocked_count || 0}</span><span class="k">blocked items</span></div>
+        </div>
+      </div>
+    </div>
+    ${
+			nx
+				? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+      <div style="font-weight:600">${esc(nx.title)}</div>
+      <div class="muted" style="font-size:13px;margin-top:3px">Due ${esc(nx.due_date)} ·
+        <span class="pill ${nx.days_left != null && nx.days_left <= 14 ? "red" : "amber"}">${nx.days_left == null ? "—" : nx.days_left + "d left"}</span>
+        ${nx.status === "blocked" ? '<span class="pill amber">blocked</span>' : ""}</div>
+      ${nx.blocked_on ? `<div style="margin-top:6px;color:var(--amber);font-size:13px">⛔ Blocked on: ${esc(nx.blocked_on)}</div>` : ""}
+    </div>`
+				: '<div class="empty" style="margin-top:10px">No open immigration items.</div>'
+		}
+  </div>`),
+	);
+
+	const fn = career.funnel || {};
+	const careerBody = career.started
+		? `<div class="stats">
+         <div class="stat"><span class="v">${career.total_applications}</span><span class="k">applications</span></div>
+         <div class="stat"><span class="v">${career.applications_last_30d}</span><span class="k">last 30 days</span></div>
+         <div class="stat"><span class="v">${career.interviews}</span><span class="k">interviews</span></div>
+         <div class="stat"><span class="v" style="color:var(--green)">${career.offers}</span><span class="k">offers</span></div>
+       </div>`
+		: `<div style="padding:12px;border:1px dashed var(--amber);border-radius:8px;color:var(--amber);font-size:13px">
+         Job search not started. Per the brief, this is the single highest-leverage lever —
+         it fixes the debt math <i>and</i> visa stability. Add roles via <code>POST /api/applications</code>.
+       </div>`;
+	wrap.append(
+		$(`<div class="card"><h2>Career / job search</h2>
+    <div class="hero" style="gap:20px;align-items:flex-start">
+      <div style="text-align:center">${ring(career.score)}<div style="margin-top:6px">${bandPill(career.score, career.band)}</div></div>
+      <div style="flex:1;min-width:200px">${careerBody}</div>
+    </div>
+    ${
+			career.target_salary
+				? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+      <div class="barlbl" style="margin-top:0"><span>Income vs target (${money(career.current_income)} → ${money(career.target_salary)})</span><span>${career.gap_closed_pct}%</span></div>
+      ${bar(career.gap_closed_pct, "var(--accent)")}
+      <div class="muted" style="font-size:12px;margin-top:6px">Gap to close: <b style="color:var(--text)">${money(career.salary_gap)}</b> · target is editable via <code>/api/profile</code></div>
+    </div>`
+				: ""
+		}
+  </div>`),
+	);
+	app.append(wrap);
+
+	// ---------- Goals & growth ----------
+	const goals = (goal.open_goals || [])
+		.map((g) => {
+			const pr = g.progress_pct == null ? 0 : g.progress_pct;
+			return `<div class="goalrow">
+      <div class="top"><span>${esc(g.title)} <span class="pill muted">${esc(g.category)}</span></span><span class="muted">${pr}%${g.milestone_date ? ` · ${esc(g.milestone_date)}` : ""}</span></div>
+      ${bar(pr, pr >= 66 ? "var(--green)" : pr >= 33 ? "var(--accent)" : "var(--amber)")}
+    </div>`;
+		})
+		.join("");
+	const achieved = (goal.achieved_milestones || [])
+		.map(
+			(m) =>
+				`<li><div class="d">${esc(m.milestone_date || "")}</div><div class="ti">${esc(m.title)}</div>${m.notes ? `<div class="d">${esc(m.notes)}</div>` : ""}</li>`,
+		)
+		.join("");
+	const paceColor = goal.pace_gap_pct >= 0 ? "var(--green)" : "var(--red)";
+	app.append(
+		$(`<div class="card"><h2>Goals & growth · "${esc(goal.goal_title || "before 30")}"</h2>
+    <div class="stats" style="margin-bottom:14px">
+      <div class="stat"><span class="v">${goal.avg_goal_progress_pct}%</span><span class="k">avg goal progress</span></div>
+      <div class="stat"><span class="v">${goal.time_used_pct}%</span><span class="k">of life-to-30 used</span></div>
+      <div class="stat"><span class="v" style="color:${paceColor}">${goal.pace_gap_pct > 0 ? "+" : ""}${goal.pace_gap_pct}</span><span class="k">pace gap (progress − time)</span></div>
+      <div class="stat"><span class="v">${num(goal.days_to_30)}</span><span class="k">days left</span></div>
+    </div>
+    <div class="grid2">
+      <div><div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">In progress</div>
+        ${goals || '<div class="empty">No open goals.</div>'}</div>
+      <div><div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Milestones reached</div>
+        <ul class="tl">${achieved || '<li class="empty">None yet.</li>'}</ul></div>
+    </div>
+  </div>`),
+	);
+}
+load();

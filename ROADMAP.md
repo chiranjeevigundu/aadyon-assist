@@ -60,11 +60,11 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
 
 - [x] **P4 — Cloud storage**: S3-compatible (boto3, pinned) for documents + backup dumps;
   per-user key prefixes; creds via Docker secrets; bucket never exposed publicly.
-- [ ] **P5 — Proactive intelligence**: per-user ntfy topics (column on `users`), alert rules
+- [x] **P5 — Proactive intelligence**: per-user ntfy topics (column on `users`), alert rules
   (deadline within N days, low balance from P2c) pushed via `services/notify.py`.
-- [ ] **P5 — Voice**: Expo STT (`expo-speech-recognition` or `@react-native-voice/voice`) →
+- [x] **P5 — Voice**: Expo STT (`expo-speech-recognition` or `@react-native-voice/voice`) →
   `/api/assistant/chat`; TTS via `expo-speech`. Thin client layer; no backend change.
-- [ ] **Dashboard JS extraction**: move inline `<script>` blocks into linted `.js` assets and
+- [x] **Dashboard JS extraction**: move inline `<script>` blocks into linted `.js` assets and
   replace the node-`vm` CI check with a real JS linter (Biome/ESLint).
 
 ## Owner-only ops (not agent tasks)

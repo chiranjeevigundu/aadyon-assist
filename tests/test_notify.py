@@ -9,7 +9,7 @@ class _Resp:
 
 def test_no_topic_is_noop(monkeypatch):
     monkeypatch.setattr(notify.get_settings(), "ntfy_topic", "", raising=False)
-    assert notify.push_briefing("hello") is False
+    assert notify.push_briefing(None, "hello") is False
 
 
 def test_pushes_when_topic_set(monkeypatch):
@@ -24,7 +24,7 @@ def test_pushes_when_topic_set(monkeypatch):
         return _Resp()
 
     monkeypatch.setattr(notify.requests, "post", fake_post)
-    assert notify.push_briefing("# Briefing") is True
+    assert notify.push_briefing(None, "# Briefing") is True
     assert sent["url"] == "http://ntfy/secret-topic"
     assert sent["data"] == b"# Briefing"
 
@@ -39,7 +39,7 @@ def test_push_failure_is_swallowed(monkeypatch):
 
     monkeypatch.setattr(notify.requests, "post", boom)
     # A failed push must never break the briefing.
-    assert notify.push_briefing("x") is False
+    assert notify.push_briefing(None, "x") is False
 
 
 def test_headers_are_latin1_safe(monkeypatch):
@@ -55,6 +55,6 @@ def test_headers_are_latin1_safe(monkeypatch):
         return _Resp()
 
     monkeypatch.setattr(notify.requests, "post", fake_post)
-    notify.push_briefing("# Briefing — with em dash in body is fine")
+    notify.push_briefing(None, "# Briefing — with em dash in body is fine")
     for value in captured["headers"].values():
         value.encode("latin-1")  # must not raise
