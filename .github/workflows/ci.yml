@@ -90,14 +90,11 @@ jobs:
           curl -fsS -H "$AUTH" "$B/api/briefing"     >/dev/null
           curl -fsS -H "$AUTH" "$B/api/assistant/conversations" >/dev/null
           echo "Smoke test passed."
-      - name: API contract fuzz (Schemathesis, GET surface)
-        # GET-only for now: write endpoints accept free-form dicts (no payload
-        # validation yet), so fuzzed writes 500 by design gap — tracked follow-up.
+      - name: API contract fuzz (Schemathesis, all endpoints)
         run: |
           pip install schemathesis==4.22.2
           schemathesis run http://localhost:8000/openapi.json \
             --header "Authorization: Bearer $TOKEN" \
-            --include-method GET \
             --checks not_a_server_error \
             --max-examples 25
       - name: Dump logs on failure

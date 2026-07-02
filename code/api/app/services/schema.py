@@ -38,7 +38,7 @@ def entities_meta() -> list[dict]:
             (e.table,),
         )
         fks = _foreign_keys(e.table)
-        writable = set(e.columns)
+        writable = set(e.columns.keys())
         col_meta = []
         for c in cols:
             name = c["column_name"]
