@@ -12,6 +12,7 @@ from app.services.summary import dashboard_summary
 from app.services.digital_me import digital_me
 from app.services.schema import entities_meta
 from app.services.briefing import build_briefing
+from app.services.alerts import build_alerts
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -43,6 +44,12 @@ def digital_me_view():
 def entities():
     """Schema metadata for every CRUD entity — powers the generic data admin UI."""
     return entities_meta()
+
+
+@router.get("/alerts", dependencies=_guard)
+def alerts():
+    """What needs attention in the next ALERT_DAYS days (deadlines, bills)."""
+    return build_alerts()
 
 
 @router.get("/briefing", dependencies=_guard)

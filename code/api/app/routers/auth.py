@@ -39,6 +39,7 @@ def _public(user: dict) -> dict:
         "id": str(user["id"]),
         "email": user["email"],
         "display_name": user.get("display_name"),
+        "ntfy_topic": user.get("ntfy_topic"),
     }
 
 
@@ -51,7 +52,9 @@ def signup(payload: dict):
             (payload or {}).get("display_name"),
         )
         token = auth.make_token(user["id"])
-    except auth.AuthError as e:
+    # ValueError: psycopg2 rejects values Postgres can't store (e.g. NUL bytes
+    # in email/display_name) — bad input, not a server error.
+    except (auth.AuthError, ValueError) as e:
         raise HTTPException(400, str(e)) from e
     return {"token": token, "user": _public(user)}
 
@@ -68,6 +71,24 @@ def login(payload: dict):
     except auth.AuthError as e:
         raise HTTPException(500, str(e)) from e
     return {"token": token, "user": _public(user)}
+
+
+@router.patch("/me")
+def update_me(payload: dict, user: dict = Depends(get_current_user)):
+    """Update own account settings (display_name, ntfy_topic)."""
+    allowed = {k: v for k, v in (payload or {}).items() if k in ("display_name", "ntfy_topic")}
+    if not allowed:
+        raise HTTPException(400, "Nothing to update. Allowed: display_name, ntfy_topic")
+    sets = ", ".join(f"{k} = %s" for k in allowed)
+    try:
+        auth.query_unscoped(
+            f"UPDATE users SET {sets} WHERE id = %s",
+            tuple(allowed.values()) + (str(user["id"]),), commit=True,
+        )
+    # ValueError: psycopg2 rejects values Postgres can't store (e.g. NUL bytes).
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return _public(auth.get_user(user["id"]))
 
 
 @router.get("/me")
