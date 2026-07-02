@@ -4,6 +4,7 @@ Keeps the API tiny: each entity (see app.models.tables) declares its writable
 columns and we generate GET (list), POST (create), PATCH (update), DELETE.
 """
 from fastapi import APIRouter, HTTPException
+from uuid import UUID
 
 from app.db.session import current_user_id, query
 from app.models.tables import ENTITIES, Entity
@@ -40,23 +41,23 @@ def make_router(entity: Entity) -> APIRouter:
         return rows[0]
 
     @router.patch("/{row_id}")
-    def update_row(row_id: str, payload: dict):
+    def update_row(row_id: UUID, payload: dict):
         data = {k: v for k, v in payload.items() if k in allowed}
         if not data:
             raise HTTPException(400, f"No valid fields. Allowed: {sorted(allowed)}")
         sets = ", ".join(f"{k} = %s" for k in data)
         rows = query(
             f"UPDATE {table} SET {sets} WHERE id = %s RETURNING *",
-            tuple(data.values()) + (row_id,), commit=True,
+            tuple(data.values()) + (str(row_id),), commit=True,
         )
         if not rows:
             raise HTTPException(404, "Not found")
         return rows[0]
 
     @router.delete("/{row_id}", status_code=204)
-    def delete_row(row_id: str):
+    def delete_row(row_id: UUID):
         rows = query(f"DELETE FROM {table} WHERE id = %s RETURNING id",
-                     (row_id,), commit=True)
+                     (str(row_id),), commit=True)
         if not rows:
             raise HTTPException(404, "Not found")
         return None

@@ -1,5 +1,5 @@
-"""Agentic org endpoints: org chart, ask-the-CEO, task running, approvals, runs."""
 from fastapi import APIRouter, HTTPException
+from uuid import UUID
 
 from app.db.session import query
 from app.services import agency
@@ -42,27 +42,27 @@ def tasks(status: str | None = None):
 
 
 @router.get("/runs")
-def runs(task_id: str):
+def runs(task_id: UUID):
     return query(
         "SELECT ar.*, a.name AS agent_name FROM agent_runs ar "
         "LEFT JOIN agents a ON a.id = ar.agent_id "
         "WHERE ar.task_id = %s ORDER BY ar.step ASC, ar.created_at ASC",
-        (task_id,),
+        (str(task_id),),
     )
 
 
 @router.post("/tasks/{task_id}/run")
-def run(task_id: str):
-    return agency.run_task(task_id)
+def run(task_id: UUID):
+    return agency.run_task(str(task_id))
 
 
 @router.post("/tasks/{task_id}/approve")
-def approve(task_id: str):
-    agency.set_status(task_id, "approved")
+def approve(task_id: UUID):
+    agency.set_status(str(task_id), "approved")
     return {"status": "approved", "note": "Approved — execute the action yourself (human-in-the-loop)."}
 
 
 @router.post("/tasks/{task_id}/reject")
-def reject(task_id: str):
-    agency.set_status(task_id, "cancelled")
+def reject(task_id: UUID):
+    agency.set_status(str(task_id), "cancelled")
     return {"status": "cancelled"}
