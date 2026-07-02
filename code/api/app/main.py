@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.routers import agency, assistant, auth, dashboard, email, system
+from app.routers import agency, assistant, auth, dashboard, email, system, calendar
 from app.routers.auth import get_current_user
 from app.routers.crud import CRUD_ROUTERS
 
@@ -32,6 +32,7 @@ def create_app() -> FastAPI:
     guard = [Depends(get_current_user)]
     app.include_router(agency.router, dependencies=guard)
     app.include_router(email.router, dependencies=guard)
+    app.include_router(calendar.router, dependencies=guard)
     app.include_router(assistant.router, dependencies=guard)
     for r in CRUD_ROUTERS:
         app.include_router(r, dependencies=guard)

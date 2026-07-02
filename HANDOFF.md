@@ -21,8 +21,15 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Next up
 
-Top of ROADMAP **Now**: `P2a — Calendar connector`. It has the full recipe inline; start there
-unless the owner directs otherwise.
+- **Goal:** Built P2a (Calendar Connector)
+- **Status:** Done!
+  - Created migrations for `calendar_accounts` and `calendar_extractions`.
+  - Added RLS per multi-user pattern.
+  - Implemented Device Code flow for Google OAuth.
+  - Built ingestion, deduplication, and LLM extraction logic.
+  - Wired into `tools.py` as `get_calendar`.
+  - Hooked into `briefing_loop.py`.
+- **Next:** Proceed with the next priority (P2b - Financial integration) or review the PR!
 
 ## Known constraints for whoever picks this up
 
