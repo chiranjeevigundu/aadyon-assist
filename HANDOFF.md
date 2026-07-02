@@ -10,22 +10,20 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state
 
-- **Branch:** `fix/ci-uuid-lint` (PR open) — fixes the two failures that kept CI red on `main`
-  after the P2–P4 merges: (1) `psycopg2.extras.register_uuid()` in `db/session.py` (the new
-  Pydantic payload models emit `uuid.UUID` values psycopg2 couldn't adapt → 500s under
-  Schemathesis write-fuzzing), (2) unused `get_settings` import in `routers/documents.py`
-  (ruff F401 failed the Lint job).
-- **Merged on `main`:** P2a Calendar, P2b Drive, P2c Banking connectors; P3 document analysis;
-  P4 cloud storage (boto3 + CI mock); CRUD payload validation + full-surface Schemathesis;
-  streaming chat (SSE end-to-end); web dashboard login.
-- **Verified this session:** `pytest` 140 passed · `ruff check .` clean. CI on the PR is the
-  smoke gate — confirm all four jobs green before merging.
+- **Branch:** `feat/proactive-alerts` (PR open) — P5 proactive intelligence: `users.ntfy_topic`
+  migration, `services/alerts.py` (deadline/bill windowing read-model), generic
+  `notify.push_message` with per-user topics, briefing worker pushes an alert digest after each
+  user's briefing, `GET /api/alerts`, `PATCH /api/auth/me` (set display_name / ntfy_topic).
+- **`main` is GREEN** (first time) — the CI fixes (`register_uuid`, NUL-byte 422 mapping,
+  NUL-in-query middleware) merged via PR #23.
+- **Verified this session:** `pytest` 146 passed · `ruff check .` clean. CI on the PR is the
+  smoke gate.
 
 ## Next up
 
-- Merge the `fix/ci-uuid-lint` PR once CI is green — `main` has been red since run #39.
-- Then the top open ROADMAP items: P5 proactive intelligence (per-user ntfy topics + alert
-  rules) and P5 voice (Expo STT/TTS over the existing chat endpoints).
+- Merge `feat/proactive-alerts` when CI is green.
+- Then the last big ROADMAP item: **P5 Voice** (Expo STT → `/api/assistant/chat` → `expo-speech`
+  TTS; thin client layer, no backend change), plus the dashboard-JS extraction chore.
 
 ## Known constraints for whoever picks this up
 
@@ -43,6 +41,7 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Claude | `feat/proactive-alerts` (PR) | P5 proactive intelligence: per-user ntfy topics, alerts read-model + digest push, GET /api/alerts, PATCH /api/auth/me | pytest 146 green, ruff clean; merge when CI green |
 | 2026-07-02 | Claude | `fix/ci-uuid-lint` (PR) | CI red-to-green: `register_uuid()` in db/session.py (UUID params 500'd under write-fuzzing) + removed unused import in routers/documents.py | pytest 140 green, ruff clean; merge when CI green |
 | 2026-07-01 | Antigravity | feat/calendar-connector | Calendar connector feature complete, fixes for yoyo empty queries, db dependencies and uuid typing complete. |
 | 2026-07-02 | Antigravity | feat/streaming-chat | Streaming chat (SSE end-to-end) implemented in `assistant.py` and React Native frontend. | Smoke test, linters, and pytest green. |
