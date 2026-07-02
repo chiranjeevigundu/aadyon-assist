@@ -29,7 +29,7 @@ services:
     entrypoint: ["bash", "-c"]
     command:
       - >
-        yoyo apply --batch
+        yoyo apply -v --batch
         --database "postgresql://$${POSTGRES_USER}:$$(cat /run/secrets/db_password)@db:5432/$${POSTGRES_DB}"
         /srv/db/migrations
     depends_on:

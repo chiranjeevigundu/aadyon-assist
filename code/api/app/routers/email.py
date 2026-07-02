@@ -1,6 +1,6 @@
 """Email endpoints: connect (encrypt app-password), sync, and review extractions."""
 from fastapi import APIRouter, HTTPException
-
+from uuid import UUID
 from app.db.session import query
 from app.services import crypto, email_ingest, ms_graph
 
@@ -8,11 +8,11 @@ router = APIRouter(prefix="/api/email", tags=["email"])
 
 
 @router.post("/{account_id}/connect")
-def connect(account_id: str, payload: dict):
+def connect(account_id: UUID, payload: dict):
     pwd = (payload or {}).get("password", "").strip()
     if not pwd:
         raise HTTPException(400, "password required")
-    rows = query("SELECT * FROM email_accounts WHERE id = %s", (account_id,))
+    rows = query("SELECT * FROM email_accounts WHERE id = %s", (str(account_id),))
     if not rows:
         raise HTTPException(404, "account not found")
     acct = rows[0]
@@ -23,7 +23,7 @@ def connect(account_id: str, payload: dict):
         email_ingest.test_login(host, port, acct["email"], pwd)
     except Exception as e:  # noqa: BLE001
         query("UPDATE email_accounts SET status='error', last_error=%s WHERE id=%s",
-              (f"login failed: {e}", account_id), commit=True)
+              (f"login failed: {e}", str(account_id)), commit=True)
         raise HTTPException(400, f"IMAP login failed: {e}") from e
     # 2) encrypt + store
     try:
@@ -31,21 +31,21 @@ def connect(account_id: str, payload: dict):
     except crypto.CryptoError as e:
         raise HTTPException(400, str(e)) from e
     query("UPDATE email_accounts SET secret_enc=%s, status='connected', last_error=NULL "
-          "WHERE id=%s", (enc, account_id), commit=True)
+          "WHERE id=%s", (enc, str(account_id)), commit=True)
     return {"status": "connected"}
 
 
 @router.post("/{account_id}/disconnect")
-def disconnect(account_id: str):
+def disconnect(account_id: UUID):
     query("UPDATE email_accounts SET secret_enc=NULL, status='not_connected' WHERE id=%s",
-          (account_id,), commit=True)
+          (str(account_id),), commit=True)
     return {"status": "not_connected"}
 
 
 @router.post("/{account_id}/ms/start")
-def ms_start(account_id: str):
+def ms_start(account_id: UUID):
     """Begin Microsoft device-code auth; returns a code the user enters at the verification URL."""
-    if not query("SELECT 1 FROM email_accounts WHERE id=%s", (account_id,)):
+    if not query("SELECT 1 FROM email_accounts WHERE id=%s", (str(account_id),)):
         raise HTTPException(404, "account not found")
     try:
         d = ms_graph.device_start()
@@ -61,12 +61,12 @@ def ms_start(account_id: str):
 
 
 @router.post("/{account_id}/ms/complete")
-def ms_complete(account_id: str, payload: dict):
+def ms_complete(account_id: UUID, payload: dict):
     """Poll once for the device-code token; store the refresh token when authorized."""
     dc = (payload or {}).get("device_code", "")
     if not dc:
         raise HTTPException(400, "device_code required")
-    if not query("SELECT 1 FROM email_accounts WHERE id=%s", (account_id,)):
+    if not query("SELECT 1 FROM email_accounts WHERE id=%s", (str(account_id),)):
         raise HTTPException(404, "account not found")
     res = ms_graph.device_poll(dc)
     if res.get("pending"):
@@ -81,13 +81,13 @@ def ms_complete(account_id: str, payload: dict):
     except crypto.CryptoError as e:
         raise HTTPException(400, str(e)) from e
     query("UPDATE email_accounts SET secret_enc=%s, status='connected', last_error=NULL WHERE id=%s",
-          (enc, account_id), commit=True)
+          (enc, str(account_id)), commit=True)
     return {"status": "connected"}
 
 
 @router.post("/{account_id}/sync")
-def sync(account_id: str):
-    r = email_ingest.sync_account(account_id)
+def sync(account_id: UUID):
+    r = email_ingest.sync_account(str(account_id))
     if r.get("error"):
         raise HTTPException(400, r["error"])
     return r
@@ -104,14 +104,14 @@ def extractions(status: str = "pending"):
 
 
 @router.post("/extractions/{ext_id}/approve")
-def approve(ext_id: str):
-    r = email_ingest.approve_extraction(ext_id)
+def approve(ext_id: UUID):
+    r = email_ingest.approve_extraction(str(ext_id))
     if r.get("error"):
         raise HTTPException(400, r["error"])
     return r
 
 
 @router.post("/extractions/{ext_id}/dismiss")
-def dismiss(ext_id: str):
-    query("UPDATE email_extractions SET status='dismissed' WHERE id=%s", (ext_id,), commit=True)
+def dismiss(ext_id: UUID):
+    query("UPDATE email_extractions SET status='dismissed' WHERE id=%s", (str(ext_id),), commit=True)
     return {"status": "dismissed"}

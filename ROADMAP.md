@@ -11,7 +11,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
 
 ## Now
 
-- [ ] **P2a — Calendar connector (read + propose only)**
+- [x] **P2a — Calendar connector (read + propose only)**
   Goal: connect Google Calendar; upcoming events become reviewable deadline suggestions.
   Reuse: clone the email template — `calendar_accounts` + `calendar_extractions` tables
   (mirror `07_email_accounts.sql`/`08_email_ingest.sql`, with `user_id` + RLS per the pattern

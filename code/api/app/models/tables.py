@@ -82,6 +82,12 @@ ENTITIES: list[Entity] = [
          "status", "active", "notes"],
         order_by="provider ASC, email ASC",
     ),
+    # --- Calendar accounts ---
+    Entity(
+        "calendar_accounts",
+        ["email", "provider", "status", "active", "notes"],
+        order_by="email ASC",
+    ),
     # --- Agentic org layer ---
     Entity(
         "teams",

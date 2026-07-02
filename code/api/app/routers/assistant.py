@@ -7,6 +7,7 @@ import json
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from uuid import UUID
 
 from app.db.session import query
 from app.services import assistant
@@ -31,12 +32,12 @@ def new_conversation(payload: dict | None = None):
 
 
 @router.get("/conversations/{cid}/messages")
-def conversation_messages(cid: str):
+def conversation_messages(cid: UUID):
     # RLS scopes this to the owner; unknown/foreign ids simply return [].
     return query(
         "SELECT id, role, content, tool_name, created_at FROM messages "
         "WHERE conversation_id = %s ORDER BY created_at ASC",
-        (cid,),
+        (str(cid),),
     )
 
 

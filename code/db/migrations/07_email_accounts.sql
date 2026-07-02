@@ -22,6 +22,6 @@ CREATE TABLE IF NOT EXISTS email_accounts (
 DROP TRIGGER IF EXISTS trg_email_accounts_updated ON email_accounts;
 CREATE TRIGGER trg_email_accounts_updated BEFORE UPDATE ON email_accounts
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE INDEX IF NOT EXISTS idx_email_accounts_active ON email_accounts (active);
+CREATE INDEX IF NOT EXISTS idx_email_accounts_active ON email_accounts (active)
 
--- No seed: add your accounts via the Accounts page.
+-- No seed: add your accounts via the Accounts page.;
