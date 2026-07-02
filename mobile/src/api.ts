@@ -23,8 +23,9 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
 export async function getApiBase(): Promise<string> {
   if (cachedBase) return cachedBase;
   const stored = await AsyncStorage.getItem(BASE_KEY);
-  cachedBase = (stored || FALLBACK).replace(/\/+$/, "");
-  return cachedBase;
+  const base = (stored || FALLBACK).replace(/\/+$/, "");
+  cachedBase = base;
+  return base;
 }
 
 export async function setApiBase(base: string): Promise<void> {
