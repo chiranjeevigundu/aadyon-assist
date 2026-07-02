@@ -35,3 +35,9 @@ def agency_page():
 def accounts_page():
     """Email accounts — register and (later) connect your mailboxes."""
     return FileResponse(get_settings().dashboard_dir / "accounts.html")
+
+
+@router.get("/login")
+def login_page():
+    """Login page for the web dashboard."""
+    return FileResponse(get_settings().dashboard_dir / "login.html")

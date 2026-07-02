@@ -33,7 +33,7 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   `mobile/package.json`) and wire `AssistantScreen.tsx`.
   Accept: visible incremental tokens in the app; non-streaming `/chat` unchanged; tests green.
 
-- [ ] **Web dashboard login**
+- [x] **Web dashboard login**
   Goal: the vanilla-JS dashboards (`/`, `/tracker`, `/data`, `/agency`, `/accounts`) currently
   401 — add a login page + token storage (localStorage) + `Authorization` header in
   `dashboard/assets/base.js` fetch helpers, mirroring `mobile/src/api.ts` (401 → redirect to
