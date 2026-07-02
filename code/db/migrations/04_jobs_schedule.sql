@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS work_schedule (
 DROP TRIGGER IF EXISTS trg_work_schedule_updated ON work_schedule;
 CREATE TRIGGER trg_work_schedule_updated BEFORE UPDATE ON work_schedule
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE INDEX IF NOT EXISTS idx_work_schedule_job ON work_schedule (job_id);
+CREATE INDEX IF NOT EXISTS idx_work_schedule_job ON work_schedule (job_id)
 
 -- Personal seed (your real jobs) lives in the gitignored 99_seed_local.sql, which
--- runs after all DDL. See code/db/seed.example.sql for a placeholder template.
+-- runs after all DDL. See code/db/seed.example.sql for a placeholder template.;

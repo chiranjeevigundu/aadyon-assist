@@ -165,6 +165,6 @@ FROM (VALUES
   ('Goal Coach','Goal Coach','Growth','Head of Growth','reasoning',
     'You review open goals vs their target dates and recommend the one focus that moves the needle.')
 ) AS v(name,title,team,lead,tier,sp)
+-- Sanity: SELECT name, agent_type, model_tier FROM agents ORDER BY agent_type
 WHERE NOT EXISTS (SELECT 1 FROM agents a WHERE a.name = v.name);
 
--- Sanity: SELECT name, agent_type, model_tier FROM agents ORDER BY agent_type;

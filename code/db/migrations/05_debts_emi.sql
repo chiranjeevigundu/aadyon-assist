@@ -26,8 +26,8 @@ SELECT
   CASE WHEN credit_limit > 0 THEN round(balance / credit_limit * 100, 1) END AS utilization_pct,
   round(balance * apr / 100 / 12, 2) AS est_monthly_interest
 FROM debts
-ORDER BY priority_rank NULLS LAST, apr DESC;
+ORDER BY priority_rank NULLS LAST, apr DESC
 
 -- Example (add via the Data admin, not seeded — no invented numbers):
 --   kind='emi', balance=remaining, installment_amount=monthly, term_months=12,
---   installments_paid=3, apr=0, due_date=next payment date, name='Affirm — <item>'.
+--   installments_paid=3, apr=0, due_date=next payment date, name='Affirm — <item>'.;
