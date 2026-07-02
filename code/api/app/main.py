@@ -1,6 +1,7 @@
 """Aadyon Assist API — application factory and wiring."""
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
@@ -11,6 +12,17 @@ from app.routers.crud import CRUD_ROUTERS
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Aadyon Assist", version="0.2.0")
+
+    # Postgres text can never contain NUL (0x00); psycopg2 raises a bare ValueError
+    # when such a value reaches a query, which would surface as a 500. Reject NUL in
+    # query strings up front so every filter param (e.g. ?status=) fails as 422 —
+    # one guard for all current and future routers instead of per-endpoint checks.
+    @app.middleware("http")
+    async def reject_nul_in_query(request: Request, call_next):
+        q = request.url.query
+        if "%00" in q or "\x00" in q:
+            return JSONResponse({"detail": "NUL bytes are not allowed"}, status_code=422)
+        return await call_next(request)
 
     # CORS — the native mobile app makes cross-origin requests. Wide-open origins
     # are acceptable because data endpoints now require a JWT bearer token (the app

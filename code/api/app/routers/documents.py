@@ -2,7 +2,6 @@
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 
-from app.core.config import get_settings
 from app.db.session import current_user_id, query
 from app.services import document_ingest, document_store, storage
 
