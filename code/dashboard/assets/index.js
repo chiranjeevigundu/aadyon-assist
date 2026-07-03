@@ -53,7 +53,7 @@ async function load() {
 		.map(
 			(x) => `<tr>
       <td>${esc(x.title)}</td><td>${esc(x.due_date)}</td>
-      <td class="num"><span class="pill ${dlClass(x.days_left)}">${x.days_left == null ? "—" : x.days_left + "d"}</span></td>
+      <td class="num"><span class="pill ${dlClass(x.days_left)}">${x.days_left == null ? "—" : `${x.days_left}d`}</span></td>
       <td><span class="pill ${x.status === "blocked" ? "amber" : "muted"}">${esc(x.status)}</span></td>
       <td>${esc(x.blocked_on || "")}</td></tr>`,
 		)
@@ -103,7 +103,7 @@ async function load() {
 				(d.bills || [])
 					.map(
 						(b) =>
-							`<tr><td>${esc(b.name)}</td><td class="num">${money2(b.amount)}</td><td>${b.due_day ? "day " + b.due_day : esc(b.frequency)}</td></tr>`,
+							`<tr><td>${esc(b.name)}</td><td class="num">${money2(b.amount)}</td><td>${b.due_day ? `day ${b.due_day}` : esc(b.frequency)}</td></tr>`,
 					)
 					.join(""),
 			),
