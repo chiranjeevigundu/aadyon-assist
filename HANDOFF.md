@@ -16,7 +16,7 @@ full-surface Schemathesis fuzz):
 
 - **Platform:** multi-user FastAPI + Postgres 16 (RLS isolation via `app.current_user_id` GUC,
   set in `db/session.py`; JWT auth in `routers/auth.py`; signup seeds a per-user agent org).
-- **Jarvis assistant:** `services/assistant.py` + `routers/assistant.py` (sync + SSE streaming);
+- **Aadyon Assist:** `services/assistant.py` + `routers/assistant.py` (sync + SSE streaming);
   write tools edit the user's own records; external side effects go through `propose_action`
   approval (golden rule #2). LLM via LiteLLM (`services/llm.py`, frozen `chat()` surface).
 - **Connectors:** email (IMAP/Graph), calendar, drive, banking (propose-only) — all follow the
@@ -79,6 +79,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-03 | Antigravity | feat/aadyon-assist-rename | Renamed Jarvis to Aadyon Assist and fixed SSE chunk parsing in dashboard | Tests pass, pushed to remote |
 | 2026-07-03 | Claude | claude/antigravity-recent-changes-t5sd1n (PR) | Review/refactor of PRs #27–#32: removed unsafe duplicate RequestValidationError handler (debug print, no jsonable_encoder), Entity.create flag replaces hardcoded table set in crud.py, storage.py dedupe + path-traversal guard on the local fallback, documents.py dot-only filename fix, api.ts new-Promise(async) antipattern fixed (upload could hang the chat UI), picker permission/error handling | pytest 150 green, ruff clean, mobile tsc clean |
 | 2026-07-02 | Antigravity | PRs #29–#32 (mobile uploads) | Document upload from assistant chat (expo pickers, api.ts multipart), local-disk storage fallback, multipart-boundary 500 fix, upload route-conflict fix | merged to main; was missing from this log — backfilled by Claude |
 | 2026-07-02 | Antigravity | feat/dashboard-js-extraction | Extracted all inline `<script>` blocks from `dashboard/*.html` into separate `assets/*.js` files, added a `biome.json` config, and updated the CI pipeline to use Biome instead of node-vm. | JS extraction complete, CI passes. |
@@ -98,7 +99,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 | 2026-07-02 | Antigravity | `feat/calendar-connector` (PR) | Fixed DB migration failures (trailing comments causing empty query error & incorrect timestamp order for users table). | Code pushed to remote. Smoke test, linters, and pytest green. |
 | 2026-07-02 | Claude | `feat/agent-interop` (PR) | Agent-interop baton: ROADMAP.md, HANDOFF.md, GEMINI.md, AGENTS.md handoff protocol | Docs-only; tests 126 green; awaiting owner merge |
 | 2026-07-02 | Claude | `main` (fresh cut `aa79500`) | OSS refactor (P1–P9): PII scrub + fresh single-commit history, justfile, yoyo, LiteLLM, APScheduler, backup image, gitleaks/Schemathesis CI, MIT + docs | Clean `main`; owner-ops items open (see ROADMAP) |
-| 2026-07-01 | Claude | (pre-squash branch) | Multi-user auth (JWT + RLS) + Jarvis assistant + mobile login/chat | Superseded by the fresh cut; content lives in `main` |
+| 2026-07-01 | Claude | (pre-squash branch) | Multi-user auth (JWT + RLS) + Aadyon Assist + mobile login/chat | Superseded by the fresh cut; content lives in `main` |
 
 ### Entry template
 

@@ -122,7 +122,7 @@ export const api = {
   agencyTasks: (status?: string) =>
     request<any[]>(`/api/agency/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`),
 
-  // Assistant (Jarvis) & Documents
+  // Assistant (Aadyon Assist) & Documents
   uploadDocument: async (
     uri: string,
     name: string,

@@ -1,4 +1,4 @@
-"""Personal assistant ("Jarvis") endpoints: conversations + chat (sync + SSE).
+"""Personal assistant ("Aadyon Assist") endpoints: conversations + chat (sync + SSE).
 
 Protected by get_current_user (wired in main.py), which binds the RLS context so
 every query here is scoped to the signed-in user.
