@@ -124,20 +124,34 @@ export default function AssistantScreen() {
     }
   };
 
+  // Wraps each picker so a denied permission or picker error surfaces as an
+  // alert instead of an unhandled rejection (Alert onPress swallows those).
+  const pickAndUpload = async (pick: () => Promise<void>) => {
+    try {
+      await pick();
+    } catch (e) {
+      Alert.alert("Upload", e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const pickDocument = useCallback(() => {
     Alert.alert("Upload Document", "Choose a source to upload a document or receipt:", [
-      { text: "Camera", onPress: async () => {
+      { text: "Camera", onPress: () => pickAndUpload(async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) throw new Error("Camera access is needed to take a photo.");
           const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
           if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].fileName || "photo.jpg", res.assets[0].mimeType || "image/jpeg");
-      }},
-      { text: "Photo Library", onPress: async () => {
+      })},
+      { text: "Photo Library", onPress: () => pickAndUpload(async () => {
+          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!perm.granted) throw new Error("Photo library access is needed to pick a photo.");
           const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
           if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].fileName || "photo.jpg", res.assets[0].mimeType || "image/jpeg");
-      }},
-      { text: "Files / PDF", onPress: async () => {
+      })},
+      { text: "Files / PDF", onPress: () => pickAndUpload(async () => {
           const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"] });
           if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].name, res.assets[0].mimeType || "application/pdf");
-      }},
+      })},
       { text: "Cancel", style: "cancel" }
     ]);
   }, []);

@@ -123,60 +123,59 @@ export const api = {
     request<any[]>(`/api/agency/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`),
 
   // Assistant (Jarvis) & Documents
-  uploadDocument: (uri: string, name: string, mimeType: string) => {
-    return new Promise<{ status: string; document_id: string }>(async (resolve, reject) => {
-      const base = await getApiBase();
-      const token = await getToken();
-      const url = `${base}/api/documents`;
+  uploadDocument: async (
+    uri: string,
+    name: string,
+    mimeType: string
+  ): Promise<{ status: string; document_id: string }> => {
+    const base = await getApiBase();
+    const token = await getToken();
 
-      const formData = new FormData();
-      // @ts-ignore - React Native FormData accepts uri/name/type
-      formData.append("file", { uri, name, type: mimeType });
+    const formData = new FormData();
+    // @ts-ignore - React Native FormData accepts uri/name/type
+    formData.append("file", { uri, name, type: mimeType });
 
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            // Do NOT set Content-Type manually here; fetch will automatically
-            // set it to multipart/form-data with the correct boundary string.
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: formData,
-        });
+    let res: Response;
+    try {
+      res = await fetch(`${base}/api/documents`, {
+        method: "POST",
+        headers: {
+          // Do NOT set Content-Type manually here; fetch will automatically
+          // set it to multipart/form-data with the correct boundary string.
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+    } catch (e: any) {
+      throw new ApiError(0, e?.message || "Upload failed");
+    }
 
-        if (res.status === 401) {
-          await clearToken();
-          onUnauthorized?.();
-          throw new ApiError(401, "Your session expired — please sign in again.");
-        }
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          reject(new ApiError(res.status, text || `HTTP ${res.status}`));
-          return;
-        }
-
-        resolve(await res.json());
-      } catch (e: any) {
-        reject(new ApiError(e.status || 0, e.message || "Upload failed"));
-      }
-    });
+    if (res.status === 401) {
+      await clearToken();
+      onUnauthorized?.();
+      throw new ApiError(401, "Your session expired — please sign in again.");
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new ApiError(res.status, text || `HTTP ${res.status}`);
+    }
+    return await res.json();
   },
 
   conversations: () => request<any[]>("/api/assistant/conversations"),
   messages: (cid: string) => request<any[]>(`/api/assistant/conversations/${cid}/messages`),
   chat: (message: string, conversation_id?: string) =>
     post<ChatResult>("/api/assistant/chat", { message, conversation_id }),
-  chatStream: (
+  chatStream: async (
     message: string,
     conversation_id: string | undefined,
     onChunk: (chunk: { delta: string }) => void
-  ) => {
-    return new Promise<ChatResult>(async (resolve, reject) => {
-      const base = await getApiBase();
-      const token = await getToken();
-      const url = `${base}/api/assistant/chat/stream`;
+  ): Promise<ChatResult> => {
+    const base = await getApiBase();
+    const token = await getToken();
+    const url = `${base}/api/assistant/chat/stream`;
 
+    return new Promise<ChatResult>((resolve, reject) => {
       const es = new EventSource(url, {
         method: "POST",
         headers: {

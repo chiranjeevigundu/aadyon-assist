@@ -45,10 +45,10 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 ## Next up (in order)
 
-1. Merge `feat/voice` when CI is green (docs+mobile only; backend untouched).
-2. **Dashboard-JS extraction** (ROADMAP Later): move inline `<script>` blocks to linted `.js`
-   assets, replace the node-vm CI check with Biome/ESLint.
-3. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
+1. ~~Merge `feat/voice`~~ done (PR #26). ~~Dashboard-JS extraction~~ done (PR #27/#28: assets
+   under `code/dashboard/assets/`, Biome in CI; `just lint` still uses the node-vm check
+   locally — swapping it to Biome for parity is a small open chore).
+2. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
    top-down. Follow the session start/end rituals in AGENTS.md — pull main, green `just test`
    baseline before changes, finish with a PR + this file updated in the same PR.
 
@@ -79,6 +79,8 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-03 | Claude | claude/antigravity-recent-changes-t5sd1n (PR) | Review/refactor of PRs #27–#32: removed unsafe duplicate RequestValidationError handler (debug print, no jsonable_encoder), Entity.create flag replaces hardcoded table set in crud.py, storage.py dedupe + path-traversal guard on the local fallback, documents.py dot-only filename fix, api.ts new-Promise(async) antipattern fixed (upload could hang the chat UI), picker permission/error handling | pytest 150 green, ruff clean, mobile tsc clean |
+| 2026-07-02 | Antigravity | PRs #29–#32 (mobile uploads) | Document upload from assistant chat (expo pickers, api.ts multipart), local-disk storage fallback, multipart-boundary 500 fix, upload route-conflict fix | merged to main; was missing from this log — backfilled by Claude |
 | 2026-07-02 | Antigravity | feat/dashboard-js-extraction | Extracted all inline `<script>` blocks from `dashboard/*.html` into separate `assets/*.js` files, added a `biome.json` config, and updated the CI pipeline to use Biome instead of node-vm. | JS extraction complete, CI passes. |
 | 2026-07-02 | Claude | `feat/voice` (PR) | P5 Voice: STT mic + TTS speak-replies in the Assistant tab (lazy voice.ts, iOS permissions/plugin); fixed mobile tsc error | typecheck clean, pytest 146 green; needs EAS build for native voice |
 | 2026-07-02 | Claude | `feat/proactive-alerts` (PR) | P5 proactive intelligence: per-user ntfy topics, alerts read-model + digest push, GET /api/alerts, PATCH /api/auth/me | pytest 146 green, ruff clean; merge when CI green |
