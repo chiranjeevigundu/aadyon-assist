@@ -31,4 +31,6 @@ def patch_query(monkeypatch, module_path, handler):
 
     _q.calls = calls
     monkeypatch.setattr(mod, "query", _q)
+    if hasattr(mod, "query_unscoped"):
+        monkeypatch.setattr(mod, "query_unscoped", _q)
     return _q
