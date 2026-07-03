@@ -1,4 +1,5 @@
 """Document endpoints: upload and review queue."""
+import io
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 
@@ -12,18 +13,17 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     """Upload a file and kick off async analysis."""
     uid = current_user_id()
     
-    # S3 Object Key: uid/filename
-    safe_name = "".join(c for c in (file.filename or "unnamed") if c.isalnum() or c in "._- ")
-    if not safe_name:
-        safe_name = "unnamed"
+    # S3 Object Key: uid/filename. Strip leading/trailing dots and spaces so a
+    # name like ".." can't become a path segment in the local-disk fallback.
+    safe_name = "".join(c for c in (file.filename or "") if c.isalnum() or c in "._- ")
+    safe_name = safe_name.strip(". ") or "unnamed"
     object_key = f"{uid}/{safe_name}"
-    
-    # We read the file to get size, then wrap in BytesIO for boto3 since FastAPI UploadFile 
-    # doesn't natively expose a good interface for boto3 upload_fileobj sometimes.
+
+    # Read fully to get the size, then hand boto3 a plain BytesIO — UploadFile's
+    # SpooledTemporaryFile doesn't reliably satisfy upload_fileobj's interface.
     content = await file.read()
     size = len(content)
-    
-    import io
+
     storage.upload_fileobj(io.BytesIO(content), object_key, file.content_type)
     
     # DB insert
