@@ -32,6 +32,8 @@ services:
         yoyo apply -v --batch
         --database "postgresql://$${POSTGRES_USER}:$$(cat /run/secrets/db_password)@db:5432/$${POSTGRES_DB}"
         /srv/db/migrations
+        &&
+        python -c "import os, psycopg2; pw = open('/run/secrets/db_password').read().strip(); conn = psycopg2.connect(host='db', dbname=os.environ['POSTGRES_DB'], user=os.environ['POSTGRES_USER'], password=pw); conn.autocommit = True; conn.cursor().execute('ALTER ROLE aadyon_app WITH PASSWORD %s', (pw,))"
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +46,7 @@ services:
     env_file: .env
     environment:
       DB_HOST: db
+      DB_USER: aadyon_app     # restricted role RLS applies to (not the bootstrap superuser)
       DB_PASSWORD_FILE: /run/secrets/db_password
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
@@ -79,6 +82,7 @@ services:
     env_file: .env
     environment:
       DB_HOST: db
+      DB_USER: aadyon_app     # restricted role RLS applies to (not the bootstrap superuser)
       DB_PASSWORD_FILE: /run/secrets/db_password
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
@@ -104,6 +108,7 @@ services:
     env_file: .env
     environment:
       DB_HOST: db
+      DB_USER: aadyon_app     # restricted role RLS applies to (not the bootstrap superuser)
       DB_PASSWORD_FILE: /run/secrets/db_password
       ARTIFACTS_DIR: /srv/artifacts
     secrets:
