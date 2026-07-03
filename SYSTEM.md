@@ -112,8 +112,7 @@ app/
     notify.py          push_briefing() → self-hosted ntfy
     routing.py         resolve(tier) → {provider, model, temperature} from model_routes
     llm.py             chat() via LiteLLM — OpenRouter (tool-calling) + Ollama (local); health()
-    tools.py           agent tools: get_snapshot (read), write tools (own records),
-                       delegate, propose_action (approval-gated externals)
+    tools.py           - `assistant`: get_snapshot, get_calendar, get_transactions, get_document_extractions, get_recent_documents, read_document, [write tools for deadlines/bills/debts/subs/profile], propose_action (approval-gated externals)
     agency.py          org_tree(), ask_ceo(), run_task() — the bounded tool-calling engine
     assistant.py       the chat engine behind /api/assistant (history + tool loop)
     auth.py            password hashing + JWT mint/verify + signup (seed_org per user)
