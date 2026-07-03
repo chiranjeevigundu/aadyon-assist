@@ -1,8 +1,10 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { api, ApiError, ChatResult } from "../api";
 import { theme } from "../theme";
 import { listenOnce, speak, sttAvailable, stopListening, stopSpeaking, ttsAvailable } from "../voice";
@@ -97,6 +99,49 @@ export default function AssistantScreen() {
     }
   }, [listening]);
 
+  const uploadFile = async (uri: string, name: string, mimeType: string) => {
+    setBusy(true);
+    scroll();
+    const botId = nextId();
+    setMessages((m) => [...m, { id: botId, role: "assistant", text: "Uploading document..." }]);
+    try {
+      const res = await api.uploadDocument(uri, name, mimeType);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === botId ? { ...msg, text: `✓ Document uploaded successfully! It has been queued for analysis and will appear in your Agency tab for review shortly.` } : msg
+        )
+      );
+    } catch (e) {
+      const err = e instanceof ApiError ? e.message : String(e);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === botId ? { ...msg, text: `⚠️ Upload failed: ${err}` } : msg
+        )
+      );
+    } finally {
+      setBusy(false);
+      scroll();
+    }
+  };
+
+  const pickDocument = useCallback(() => {
+    Alert.alert("Upload Document", "Choose a source to upload a document or receipt:", [
+      { text: "Camera", onPress: async () => {
+          const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+          if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].fileName || "photo.jpg", res.assets[0].mimeType || "image/jpeg");
+      }},
+      { text: "Photo Library", onPress: async () => {
+          const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
+          if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].fileName || "photo.jpg", res.assets[0].mimeType || "image/jpeg");
+      }},
+      { text: "Files / PDF", onPress: async () => {
+          const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"] });
+          if (!res.canceled) uploadFile(res.assets[0].uri, res.assets[0].name, res.assets[0].mimeType || "application/pdf");
+      }},
+      { text: "Cancel", style: "cancel" }
+    ]);
+  }, []);
+
   return (
     <KeyboardAvoidingView
       style={s.wrap}
@@ -129,6 +174,9 @@ export default function AssistantScreen() {
             <Text style={s.voiceIcon}>{speakReplies ? "🔊" : "🔈"}</Text>
           </TouchableOpacity>
         ) : null}
+        <TouchableOpacity style={s.plusBtn} onPress={pickDocument} disabled={busy}>
+          <Text style={s.plusIcon}>+</Text>
+        </TouchableOpacity>
         <TextInput
           value={input}
           onChangeText={setInput}
@@ -226,4 +274,10 @@ const s = StyleSheet.create({
   voiceBtnOn: { borderColor: theme.accent },
   voiceBtnLive: { borderColor: theme.bad, backgroundColor: "#3a1520" },
   voiceIcon: { fontSize: 18 },
+  plusBtn: {
+    width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    backgroundColor: theme.cardAlt, borderWidth: 1, borderColor: theme.border,
+    marginRight: 4,
+  },
+  plusIcon: { fontSize: 24, color: theme.textDim, fontWeight: "400", marginTop: -2 },
 });
