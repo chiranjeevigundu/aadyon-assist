@@ -307,12 +307,19 @@ async function uploadDocument(file) {
 			throw new Error(txt || `HTTP ${res.status}`);
 		}
 
+		const txt = await res.text().catch(() => "");
+		let docId = "";
+		try {
+			docId = JSON.parse(txt).document_id || "";
+		} catch (e) {}
+
 		document.getElementById(bubbleId).innerHTML =
 			"✓ Document uploaded successfully! It has been queued for analysis and will appear in your Agency tab for review shortly.";
 
 		// Automatically send a message so the assistant knows a document was just uploaded
 		setTimeout(() => {
-			domInput.value = `I just uploaded a document named "${file.name}".`;
+			const idStr = docId ? ` (document_id: ${docId})` : "";
+			domInput.value = `I just uploaded a document named "${file.name}"${idStr}.`;
 			sendMessage();
 		}, 500);
 	} catch (e) {
