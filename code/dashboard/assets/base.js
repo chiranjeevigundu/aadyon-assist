@@ -13,7 +13,7 @@
 	if (vp && !/viewport-fit/.test(vp.getAttribute("content") || "")) {
 		vp.setAttribute(
 			"content",
-			vp.getAttribute("content") + ", viewport-fit=cover",
+			`${vp.getAttribute("content")}, viewport-fit=cover`,
 		);
 	}
 	if (head.querySelector('link[rel="manifest"]')) return;
@@ -57,7 +57,7 @@ function esc(s) {
 function money(n) {
 	return n == null
 		? "—"
-		: "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+		: `$${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 function money2(n) {
 	return n == null
@@ -90,7 +90,7 @@ function logout() {
 async function fetchApi(url, options = {}) {
 	const token = getToken();
 	const headers = { ...options.headers };
-	if (token) headers["Authorization"] = `Bearer ${token}`;
+	if (token) headers.Authorization = `Bearer ${token}`;
 	if (
 		!headers["Content-Type"] &&
 		options.body &&

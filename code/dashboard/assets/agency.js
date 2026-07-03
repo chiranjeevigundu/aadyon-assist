@@ -1,6 +1,6 @@
 function toast(m, k) {
 	const t = document.getElementById("toast");
-	t.className = "toast show " + (k || "");
+	t.className = `toast show ${k || ""}`;
 	t.textContent = m;
 	setTimeout(() => (t.className = "toast"), 2600);
 }
@@ -18,7 +18,7 @@ async function api(method, path, body) {
 	} catch {
 		d = t;
 	}
-	if (!r.ok) throw new Error((d && d.detail) || "HTTP " + r.status);
+	if (!r.ok) throw new Error(d?.detail || `HTTP ${r.status}`);
 	return d;
 }
 const statusClass = (s) =>
@@ -67,7 +67,7 @@ async function loadOrg() {
 		})
 		.join("");
 	document.getElementById("org").innerHTML =
-		`<div class="ceo">${o.ceo ? esc(o.ceo.name) + " · " + esc(o.ceo.title || "CEO") : "No CEO"}</div><div class="teams">${teams}</div>`;
+		`<div class="ceo">${o.ceo ? `${esc(o.ceo.name)} · ${esc(o.ceo.title || "CEO")}` : "No CEO"}</div><div class="teams">${teams}</div>`;
 }
 
 const openTasks = new Set();
@@ -129,7 +129,7 @@ async function loadTasks() {
 				b.disabled = true;
 				b.textContent = "Running…";
 				try {
-					await api("POST", "/api/agency/tasks/" + b.dataset.run + "/run");
+					await api("POST", `/api/agency/tasks/${b.dataset.run}/run`);
 					toast("Task ran", "");
 				} catch (e) {
 					toast(e.message, "");
@@ -141,7 +141,7 @@ async function loadTasks() {
 		(b) =>
 			(b.onclick = async (ev) => {
 				ev.stopPropagation();
-				await api("POST", "/api/agency/tasks/" + b.dataset.ok + "/approve");
+				await api("POST", `/api/agency/tasks/${b.dataset.ok}/approve`);
 				toast("Approved", "");
 				loadTasks();
 			}),
@@ -150,7 +150,7 @@ async function loadTasks() {
 		(b) =>
 			(b.onclick = async (ev) => {
 				ev.stopPropagation();
-				await api("POST", "/api/agency/tasks/" + b.dataset.no + "/reject");
+				await api("POST", `/api/agency/tasks/${b.dataset.no}/reject`);
 				toast("Rejected", "");
 				loadTasks();
 			}),
@@ -166,15 +166,15 @@ async function loadTasks() {
 }
 async function loadRuns(id) {
 	try {
-		const runs = await api("GET", "/api/agency/runs?task_id=" + id);
-		const box = document.getElementById("runs-" + id);
+		const runs = await api("GET", `/api/agency/runs?task_id=${id}`);
+		const box = document.getElementById(`runs-${id}`);
 		if (!box) return;
 		box.innerHTML = runs.length
 			? '<div class="meta" style="margin-top:8px">Run log</div>' +
 				runs
 					.map(
 						(r) =>
-							`<div class="run"><b>${esc(r.agent_name || "agent")}</b> · step ${r.step} · ${esc(r.role)}${r.tool_name ? " · " + esc(r.tool_name) : ""} <span class="pill">${esc(r.provider || "")}/${esc(r.model || "")}</span><div>${esc((r.content || "").slice(0, 600))}</div></div>`,
+							`<div class="run"><b>${esc(r.agent_name || "agent")}</b> · step ${r.step} · ${esc(r.role)}${r.tool_name ? ` · ${esc(r.tool_name)}` : ""} <span class="pill">${esc(r.provider || "")}/${esc(r.model || "")}</span><div>${esc((r.content || "").slice(0, 600))}</div></div>`,
 					)
 					.join("")
 			: "";
@@ -195,7 +195,7 @@ document.getElementById("askBtn").onclick = async () => {
 		document.getElementById("goal").value = "";
 		loadTasks();
 	} catch (e) {
-		toast("Error: " + e.message, "");
+		toast(`Error: ${e.message}`, "");
 	}
 	document.getElementById("askBtn").disabled = false;
 };
