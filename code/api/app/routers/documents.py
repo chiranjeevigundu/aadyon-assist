@@ -14,6 +14,8 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     
     # S3 Object Key: uid/filename
     safe_name = "".join(c for c in (file.filename or "unnamed") if c.isalnum() or c in "._- ")
+    if not safe_name:
+        safe_name = "unnamed"
     object_key = f"{uid}/{safe_name}"
     
     # We read the file to get size, then wrap in BytesIO for boto3 since FastAPI UploadFile 
