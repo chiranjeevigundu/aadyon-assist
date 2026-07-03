@@ -4,7 +4,8 @@
 
 set shell := ["bash", "-cu"]
 
-# Start the full stack (build if needed)
+# Start the full stack (build if needed) — this is the production definition,
+# as deployed on the always-on server. Use up-dev for local development.
 up:
     docker compose up -d --build
 
@@ -15,6 +16,60 @@ down:
 # Tail logs for one service, e.g. `just logs api`
 logs service:
     docker compose logs -f {{service}}
+
+# --- Environments: dev (local iteration) vs prod (the deployed server) ---
+# Both read from .env + secrets/*.txt on whichever machine you run them; see
+# .env.development.example / .env.production.example and `bootstrap-dev` /
+# `bootstrap-prod` below for spinning either up from scratch.
+
+# Dev stack: hot-reload API (bind-mounted, --reload), Postgres port exposed on
+# the host for psql/GUI access, no backup/ntfy (skip nightly dumps + push for
+# throwaway local data).
+up-dev:
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait db migrate api briefing agency
+
+down-dev:
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+logs-dev service:
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f {{service}}
+
+# Prod stack: identical to `up`/`down` above — explicit name for symmetry with
+# up-dev/down-dev and for scripting a from-scratch server bring-up.
+up-prod:
+    docker compose up -d --build
+
+down-prod:
+    docker compose down
+
+# One-time, idempotent bootstrap for a brand-new dev checkout: copies the dev
+# env template (never overwrites an existing .env) and generates secrets/*.txt
+# that don't exist yet (db password + JWT signing key; S3/OpenRouter/email keys
+# are feature-specific and left blank for you to fill in as needed).
+bootstrap-dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -f .env ] || cp .env.development.example .env
+    mkdir -p secrets
+    [ -f secrets/db_password.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(24))" > secrets/db_password.txt
+    [ -f secrets/jwt_secret.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
+    [ -f secrets/s3_access_key.txt ] || printf 'unused' > secrets/s3_access_key.txt
+    [ -f secrets/s3_secret_key.txt ] || printf 'unused' > secrets/s3_secret_key.txt
+    echo "dev environment bootstrapped — fill in OPENROUTER_API_KEY etc. in .env, then: just up-dev"
+
+# Same as bootstrap-dev but from the prod env template — for standing up a
+# fresh production instance (new server, or rebuilding the Mac Mini from
+# scratch). Never overwrites an existing .env or existing secret files.
+bootstrap-prod:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -f .env ] || cp .env.production.example .env
+    mkdir -p secrets
+    [ -f secrets/db_password.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(24))" > secrets/db_password.txt
+    [ -f secrets/jwt_secret.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
+    [ -f secrets/s3_access_key.txt ] || printf 'unused' > secrets/s3_access_key.txt
+    [ -f secrets/s3_secret_key.txt ] || printf 'unused' > secrets/s3_secret_key.txt
+    echo "prod environment bootstrapped — fill in real secrets in .env + secrets/, then: just up-prod"
 
 # Rebuild images without starting
 build:
