@@ -6,7 +6,7 @@
 A **self-hosted, multi-user personal life-ops platform** with a conversational AI assistant:
 one Postgres source of truth for your deadlines, debts, bills, subscriptions, work and goals —
 an agentic "org" that analyzes it, an email/document-ingest pipeline that turns inbox noise and PDFs into
-reviewable to-dos, and an iPhone app with a Jarvis-style chat that can act on your data.
+reviewable to-dos, and an iPhone app with an Aadyon Assist chat that can act on your data.
 
 Personal life-ops tracker. Phase 1 (now): a lean, self-hosted tracker for **deadlines,
 debts, bills, subscriptions, and shifts** — one source of truth, built on the same stack
@@ -15,7 +15,7 @@ the eventual agentic "life ops" platform will run on (Postgres + pgvector, Docke
 > Track-first, migrate-later. The schema here is the schema that ports to your always-on
 > server. The tool gets the mental load out of your head; it doesn't change the numbers.
 
-## Jarvis assistant (multi-user)
+## Aadyon Assist (multi-user)
 The app is now **multi-user** with a conversational assistant. Sign up / log in from the
 iPhone app (`mobile/`); every account is isolated at the database by Postgres Row-Level
 Security. The **Assistant** tab is a chat that reads your Digital Me and can **directly update

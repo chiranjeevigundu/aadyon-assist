@@ -1,4 +1,4 @@
-"""The personal assistant ("Jarvis") — a conversational, tool-using chat engine.
+"""The personal assistant ("Aadyon Assist") — a conversational, tool-using chat engine.
 
 Modeled on agency.run_task: a bounded tool-calling loop over the routed model.
 Unlike the org agents, the assistant may WRITE the user's own records directly
@@ -24,7 +24,7 @@ class ConversationNotFound(RuntimeError):
 
 def _system_prompt() -> str:
     return (
-        f"You are Jarvis, the user's personal life-ops assistant. Today is {date.today()}. "
+        f"You are Aadyon Assist, the user's personal life-ops assistant. Today is {date.today()}. "
         "You manage the user's Digital Me: deadlines, debts, bills, subscriptions, milestones, "
         "their profile, and an agent org. Always call get_snapshot for real numbers — never invent "
         "them. You MAY directly create, update, or delete the user's own records with the write "

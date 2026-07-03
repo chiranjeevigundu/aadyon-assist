@@ -20,7 +20,7 @@ type Msg = {
 let _seq = 0;
 const nextId = () => `m${_seq++}`;
 
-// Jarvis: a conversational tab that can read AND write your data. It talks to
+// Aadyon Assist: a conversational tab that can read AND write your data. It talks to
 // POST /api/assistant/chat; the assistant edits your records directly, while
 // money/email/filing actions come back as proposals to approve on the web console.
 export default function AssistantScreen() {

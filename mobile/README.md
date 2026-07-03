@@ -3,7 +3,7 @@
 A native (Expo / React Native) client for the self-hosted Aadyon Assist backend. You **log in**
 (multi-user; JWT stored on-device), then get five tabs:
 
-- **Assistant** — a chat "Jarvis" that reads your Digital Me and can **directly update your own
+- **Assistant** — a chat "Aadyon Assist" that reads your Digital Me and can **directly update your own
   records** (deadlines, bills, debts, subscriptions, milestones, profile) via natural language.
   Talks to `POST /api/assistant/chat`.
 - **Digital Me** — overall + four life-dimension scores (financial, visa, career, goal), each with
@@ -93,7 +93,7 @@ mobile/
     components.tsx        Card / Row / ScoreBadge / Screen / Loading / Error
     screens/
       LoginScreen.tsx     sign in / sign up
-      AssistantScreen.tsx chat with Jarvis (reads + writes your data)
+      AssistantScreen.tsx chat with Aadyon Assist (reads + writes your data)
       DigitalMeScreen.tsx
       TrackerScreen.tsx
       AgencyScreen.tsx
