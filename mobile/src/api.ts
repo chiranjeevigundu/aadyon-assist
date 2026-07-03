@@ -122,7 +122,46 @@ export const api = {
   agencyTasks: (status?: string) =>
     request<any[]>(`/api/agency/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`),
 
-  // Assistant (Jarvis)
+  // Assistant (Jarvis) & Documents
+  uploadDocument: (uri: string, name: string, mimeType: string) => {
+    return new Promise<{ status: string; document_id: string }>(async (resolve, reject) => {
+      const base = await getApiBase();
+      const token = await getToken();
+      const url = `${base}/api/documents`;
+
+      const formData = new FormData();
+      // @ts-ignore - React Native FormData accepts uri/name/type
+      formData.append("file", { uri, name, type: mimeType });
+
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "multipart/form-data",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        });
+
+        if (res.status === 401) {
+          await clearToken();
+          onUnauthorized?.();
+          throw new ApiError(401, "Your session expired — please sign in again.");
+        }
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          reject(new ApiError(res.status, text || `HTTP ${res.status}`));
+          return;
+        }
+
+        resolve(await res.json());
+      } catch (e: any) {
+        reject(new ApiError(e.status || 0, e.message || "Upload failed"));
+      }
+    });
+  },
+
   conversations: () => request<any[]>("/api/assistant/conversations"),
   messages: (cid: string) => request<any[]>(`/api/assistant/conversations/${cid}/messages`),
   chat: (message: string, conversation_id?: string) =>
