@@ -55,13 +55,13 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 - 2026-07-02 | Gemini | Finished final smoke test debugging. Fixed 500 error in `bank_accounts` endpoints caused by missing `balance` column in the DB schema by adding a new yoyo migration. The Schemathesis fuzzing step is now 100% green. The owner successfully deployed a completely fresh copy to their production Mac Mini server.
 
 ## Current state
-- The branch `feat/final-features` is pushed and all CI checks (pytest, Schemathesis, smoke tests) pass.
+- The branch `feat/assistant-context` was pushed with bugfixes for the assistant's context when reading documents and the initial seeding of the user's profile upon signup.
 - The platform is now fully deployed and running successfully on the owner's Mac Mini.
 - **The original ROADMAP build-out is 100% COMPLETE.**
 
 ## Next steps (for the next agent or human)
-- **Claude**: All milestone features have been implemented and deployed! Await new instructions from the owner on what to build next, and be sure to add them to the ROADMAP.md before starting work.
-- **Human**: Ensure `feat/final-features` is merged into `main` if not already done.
+- **Claude**: All milestone features have been implemented and deployed! The latest fixes ensure the assistant has full context when interacting with uploaded documents and properly tracks user names. Await new instructions from the owner on what to build next, and be sure to add them to the ROADMAP.md before starting work.
+- **Human**: Ensure `feat/assistant-context` is merged into `main` and deploy on the remote server by running `git pull` and `docker compose up -d --build`.
 
 ## Known constraints for whoever picks this up
 
@@ -79,6 +79,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-03 | Antigravity | feat/assistant-context | Fixed assistant unable to read uploaded documents by passing `document_id` in frontend message; seeded `profile` row with user's name on signup. | Tests and linter pass, pushed to remote. |
 | 2026-07-03 | Antigravity | feat/aadyon-assist-rename | Renamed Jarvis to Aadyon Assist and fixed SSE chunk parsing in dashboard | Tests pass, pushed to remote |
 | 2026-07-03 | Claude | claude/antigravity-recent-changes-t5sd1n (PR) | Review/refactor of PRs #27–#32: removed unsafe duplicate RequestValidationError handler (debug print, no jsonable_encoder), Entity.create flag replaces hardcoded table set in crud.py, storage.py dedupe + path-traversal guard on the local fallback, documents.py dot-only filename fix, api.ts new-Promise(async) antipattern fixed (upload could hang the chat UI), picker permission/error handling | pytest 150 green, ruff clean, mobile tsc clean |
 | 2026-07-02 | Antigravity | PRs #29–#32 (mobile uploads) | Document upload from assistant chat (expo pickers, api.ts multipart), local-disk storage fallback, multipart-boundary 500 fix, upload route-conflict fix | merged to main; was missing from this log — backfilled by Claude |
