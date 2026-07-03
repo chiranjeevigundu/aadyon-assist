@@ -87,6 +87,26 @@ _SCHEMAS: dict = {
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    "get_recent_documents": {
+        "type": "function",
+        "function": {
+            "name": "get_recent_documents",
+            "description": "List the user's recently uploaded documents. Useful to find the document_id of a newly uploaded file.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    "read_document": {
+        "type": "function",
+        "function": {
+            "name": "read_document",
+            "description": "Read the raw text content of a document by its document_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {"document_id": {"type": "string"}},
+                "required": ["document_id"],
+            },
+        },
+    },
     "delegate": {
         "type": "function",
         "function": {
@@ -200,7 +220,7 @@ _BY_TYPE = {
     "team_lead": ["get_snapshot", "propose_action"],
     "employee": ["get_snapshot", "propose_action"],
     # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions", "get_recent_documents", "read_document"] + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -219,6 +239,10 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
         return _get_transactions(args)
     if name == "get_document_extractions":
         return _get_document_extractions(args)
+    if name == "get_recent_documents":
+        return _get_recent_documents(args)
+    if name == "read_document":
+        return _read_document(args)
     if name == "delegate":
         return _delegate(args, ctx)
     if name == "propose_action":
@@ -325,6 +349,47 @@ def _get_document_extractions(args: dict) -> dict:
         "ORDER BY e.created_at DESC LIMIT 50"
     )
     return {"pending_extractions": rows}
+
+
+def _get_recent_documents(args: dict) -> dict:
+    rows = query(
+        "SELECT id, filename, mime_type, status, created_at FROM documents "
+        "WHERE user_id = %s ORDER BY created_at DESC LIMIT 10",
+        (current_user_id(),)
+    )
+    return {"documents": rows}
+
+
+def _read_document(args: dict) -> dict:
+    doc_id = args.get("document_id")
+    if not doc_id:
+        return {"error": "document_id is required"}
+    
+    rows = query("SELECT storage_path, mime_type FROM documents WHERE id = %s AND user_id = %s", 
+                 (doc_id, current_user_id()))
+    if not rows:
+        return {"error": "document not found"}
+    doc = rows[0]
+    
+    from app.services import storage
+    import io
+    
+    file_obj = io.BytesIO()
+    try:
+        storage.download_fileobj(doc["storage_path"], file_obj)
+        file_obj.seek(0)
+    except Exception as e:
+        return {"error": f"failed to download document: {e}"}
+        
+    mime_type = doc.get("mime_type", "")
+    if mime_type == "application/pdf":
+        from app.services.document_ingest import extract_text_from_pdf
+        return {"text": extract_text_from_pdf(file_obj)}
+    
+    try:
+        return {"text": file_obj.read().decode("utf-8", errors="replace")}
+    except Exception as e:
+        return {"error": f"could not read document text: {e}"}
 
 
 # --------------------------------------------------------------------------- org handlers
