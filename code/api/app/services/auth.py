@@ -93,6 +93,9 @@ def create_user(email: str, password: str, display_name: str | None = None) -> d
     # to the new user, so the RLS WITH CHECK on teams/agents inserts passes.
     set_current_user(user["id"])
     query("SELECT seed_org(%s)", (str(user["id"]),), commit=True)
+    # Seed the user's initial Digital Me profile with their display name.
+    d_name = display_name or email.split("@")[0]
+    query("INSERT INTO profile (user_id, full_name) VALUES (%s, %s)", (str(user["id"]), d_name), commit=True)
     return user
 
 
