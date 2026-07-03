@@ -1,6 +1,6 @@
 function toast(m, k) {
 	const t = document.getElementById("toast");
-	t.className = "toast show " + (k || "");
+	t.className = `toast show ${k || ""}`;
 	t.textContent = m;
 	setTimeout(() => (t.className = "toast"), 3000);
 }
@@ -19,8 +19,7 @@ async function api(method, path, body) {
 	} catch {
 		d = t;
 	}
-	if (!r.ok)
-		throw new Error(d && d.detail ? "" + d.detail : "HTTP " + r.status);
+	if (!r.ok) throw new Error(d?.detail ? `${d.detail}` : `HTTP ${r.status}`);
 	return d;
 }
 const statusClass = (s) =>
@@ -78,7 +77,7 @@ async function loadAccounts() {
 			return `<div class="acct" data-id="${esc(a.id)}">
       <div class="top">
         <div><div class="who">${esc(a.email)} <span class="pill ${provBadge(a.provider)}">${esc(a.provider)}</span></div>
-          <div class="meta">${esc(a.purpose || "—")} · ${esc(a.auth_type)}${a.last_sync ? " · synced " + esc(a.last_sync.slice(0, 16).replace("T", " ")) : ""}${a.last_error ? ' · <span style="color:var(--red)">' + esc(a.last_error) + "</span>" : ""}</div></div>
+          <div class="meta">${esc(a.purpose || "—")} · ${esc(a.auth_type)}${a.last_sync ? ` · synced ${esc(a.last_sync.slice(0, 16).replace("T", " "))}` : ""}${a.last_error ? ` · <span style="color:var(--red)">${esc(a.last_error)}</span>` : ""}</div></div>
         <div class="row"><span class="pill ${statusClass(a.status)}">${esc(a.status)}</span>${actions}
           <button class="btn ghost sm" data-del="${esc(a.id)}">Remove</button></div>
       </div>
@@ -99,21 +98,21 @@ async function loadAccounts() {
 		(b) =>
 			(b.onclick = () =>
 				document
-					.getElementById("conn-" + b.dataset.conn)
+					.getElementById(`conn-${b.dataset.conn}`)
 					.classList.add("open")),
 	);
 	$$("[data-cancel]").forEach(
 		(b) =>
 			(b.onclick = () =>
 				document
-					.getElementById("conn-" + b.dataset.cancel)
+					.getElementById(`conn-${b.dataset.cancel}`)
 					.classList.remove("open")),
 	);
 	$$("[data-save]").forEach(
 		(b) =>
 			(b.onclick = async () => {
 				const id = b.dataset.save,
-					pw = document.getElementById("pw-" + id).value.trim();
+					pw = document.getElementById(`pw-${id}`).value.trim();
 				if (!pw) {
 					toast("Enter the app password", "err");
 					return;
@@ -121,11 +120,11 @@ async function loadAccounts() {
 				b.disabled = true;
 				b.textContent = "Connecting…";
 				try {
-					await api("POST", "/api/email/" + id + "/connect", { password: pw });
+					await api("POST", `/api/email/${id}/connect`, { password: pw });
 					toast("Connected ✓", "ok");
 					loadAccounts();
 				} catch (e) {
-					toast("Failed: " + e.message, "err");
+					toast(`Failed: ${e.message}`, "err");
 					b.disabled = false;
 					b.textContent = "Save & connect";
 				}
@@ -137,12 +136,12 @@ async function loadAccounts() {
 				b.disabled = true;
 				b.textContent = "Syncing…";
 				try {
-					const r = await api("POST", "/api/email/" + b.dataset.sync + "/sync");
+					const r = await api("POST", `/api/email/${b.dataset.sync}/sync`);
 					toast(`Scanned ${r.scanned}, queued ${r.queued}`, "ok");
 					loadAccounts();
 					loadExtractions();
 				} catch (e) {
-					toast("Sync failed: " + e.message, "err");
+					toast(`Sync failed: ${e.message}`, "err");
 				}
 				b.disabled = false;
 				b.textContent = "Sync now";
@@ -152,7 +151,7 @@ async function loadAccounts() {
 		(b) =>
 			(b.onclick = async () => {
 				if (!confirm("Disconnect (forget the credentials)?")) return;
-				await api("POST", "/api/email/" + b.dataset.disc + "/disconnect");
+				await api("POST", `/api/email/${b.dataset.disc}/disconnect`);
 				toast("Disconnected", "ok");
 				loadAccounts();
 			}),
@@ -161,7 +160,7 @@ async function loadAccounts() {
 		(b) =>
 			(b.onclick = async () => {
 				if (!confirm("Remove this account?")) return;
-				await api("DELETE", "/api/email_accounts/" + b.dataset.del);
+				await api("DELETE", `/api/email_accounts/${b.dataset.del}`);
 				toast("Removed", "ok");
 				loadAccounts();
 			}),
@@ -172,15 +171,14 @@ async function loadAccounts() {
 }
 
 async function msConnect(id) {
-	const panel = document.getElementById("msconn-" + id);
+	const panel = document.getElementById(`msconn-${id}`);
 	panel.classList.add("open");
 	panel.innerHTML = '<div class="meta">Starting Microsoft sign-in…</div>';
 	let d;
 	try {
-		d = await api("POST", "/api/email/" + id + "/ms/start");
+		d = await api("POST", `/api/email/${id}/ms/start`);
 	} catch (e) {
-		panel.innerHTML =
-			'<div class="meta" style="color:var(--red)">' + esc(e.message) + "</div>";
+		panel.innerHTML = `<div class="meta" style="color:var(--red)">${esc(e.message)}</div>`;
 		return;
 	}
 	panel.innerHTML = `<div>1. Open <a href="${esc(d.verification_uri)}" target="_blank"><b>${esc(d.verification_uri)}</b></a><br>
@@ -190,18 +188,18 @@ async function msConnect(id) {
 	const deadline = Date.now() + d.expires_in * 1000;
 	const tick = async () => {
 		if (Date.now() > deadline) {
-			const el = document.getElementById("msst-" + id);
+			const el = document.getElementById(`msst-${id}`);
 			if (el) el.textContent = "Code expired — click Connect again.";
 			return;
 		}
 		let r;
 		try {
-			r = await api("POST", "/api/email/" + id + "/ms/complete", {
+			r = await api("POST", `/api/email/${id}/ms/complete`, {
 				device_code: d.device_code,
 			});
 		} catch (e) {
-			const el = document.getElementById("msst-" + id);
-			if (el) el.textContent = "Error: " + e.message;
+			const el = document.getElementById(`msst-${id}`);
+			if (el) el.textContent = `Error: ${e.message}`;
 			return;
 		}
 		if (r.status === "connected") {
@@ -232,7 +230,7 @@ async function loadExtractions() {
 			(x) => `
     <div class="ext">
       <div class="row" style="justify-content:space-between">
-        <div><span class="pill ${kindBadge(x.kind)}">${esc(x.kind)}</span> <b>${esc((x.payload && x.payload.title) || x.subject || "(item)")}</b></div>
+        <div><span class="pill ${kindBadge(x.kind)}">${esc(x.kind)}</span> <b>${esc(x.payload?.title || x.subject || "(item)")}</b></div>
         <div class="row"><button class="btn green sm" data-ok="${esc(x.id)}">Approve</button>
           <button class="btn red sm" data-no="${esc(x.id)}">Dismiss</button></div>
       </div>
@@ -248,9 +246,9 @@ async function loadExtractions() {
 				try {
 					const r = await api(
 						"POST",
-						"/api/email/extractions/" + b.dataset.ok + "/approve",
+						`/api/email/extractions/${b.dataset.ok}/approve`,
 					);
-					toast("Added as " + r.applied_as, "ok");
+					toast(`Added as ${r.applied_as}`, "ok");
 					loadExtractions();
 				} catch (e) {
 					toast(e.message, "err");
@@ -261,10 +259,7 @@ async function loadExtractions() {
 	document.querySelectorAll("[data-no]").forEach(
 		(b) =>
 			(b.onclick = async () => {
-				await api(
-					"POST",
-					"/api/email/extractions/" + b.dataset.no + "/dismiss",
-				);
+				await api("POST", `/api/email/extractions/${b.dataset.no}/dismiss`);
 				loadExtractions();
 			}),
 	);
@@ -292,7 +287,7 @@ document.getElementById("addBtn").onclick = async () => {
 		document.getElementById("purpose").value = "";
 		loadAccounts();
 	} catch (e) {
-		toast("Error: " + e.message, "err");
+		toast(`Error: ${e.message}`, "err");
 	}
 };
 

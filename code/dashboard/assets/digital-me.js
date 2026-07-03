@@ -36,7 +36,7 @@ async function load() {
 		return;
 	}
 	app.innerHTML = "";
-	document.getElementById("asof").textContent = "as of " + d.as_of;
+	document.getElementById("asof").textContent = `as of ${d.as_of}`;
 
 	const p = d.profile || {},
 		life = d.life || {},
@@ -68,7 +68,7 @@ async function load() {
 
 	// ---------- Overall + dimensions ----------
 	const ov = d.overall || { score: 0, band: "" };
-	const dimCard = (key, label, o) => `<div class="dim">
+	const dimCard = (_key, label, o) => `<div class="dim">
       <div class="t">${label}</div>
       <div class="s" style="color:${scoreColor(o.score)}">${o.score}</div>
       <div class="b">${bandPill(o.score, o.band)}</div>
@@ -157,7 +157,7 @@ async function load() {
         <td>${esc(j.employer)} ${j.role ? `<span class="muted" style="font-size:12px">· ${esc(j.role)}</span>` : ""}</td>
         <td><span class="pill ${j.kind === "full_time_salary" ? "violet" : "muted"}">${jobKind(j.kind)}</span></td>
         <td><span class="pill ${j.status === "active" ? "green" : j.status === "offer" ? "amber" : "muted"}">${esc(j.status)}</span></td>
-        <td class="num">${j.weekly_hours == null ? "—" : j.weekly_hours + "h"}</td>
+        <td class="num">${j.weekly_hours == null ? "—" : `${j.weekly_hours}h`}</td>
         <td class="num">${money(j.monthly_gross)}</td>
         <td class="num">${money(j.monthly_takehome)}</td></tr>`;
 			})
@@ -198,7 +198,7 @@ async function load() {
 				? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
       <div style="font-weight:600">${esc(nx.title)}</div>
       <div class="muted" style="font-size:13px;margin-top:3px">Due ${esc(nx.due_date)} ·
-        <span class="pill ${nx.days_left != null && nx.days_left <= 14 ? "red" : "amber"}">${nx.days_left == null ? "—" : nx.days_left + "d left"}</span>
+        <span class="pill ${nx.days_left != null && nx.days_left <= 14 ? "red" : "amber"}">${nx.days_left == null ? "—" : `${nx.days_left}d left`}</span>
         ${nx.status === "blocked" ? '<span class="pill amber">blocked</span>' : ""}</div>
       ${nx.blocked_on ? `<div style="margin-top:6px;color:var(--amber);font-size:13px">⛔ Blocked on: ${esc(nx.blocked_on)}</div>` : ""}
     </div>`

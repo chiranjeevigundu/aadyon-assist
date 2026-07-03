@@ -8,7 +8,7 @@ const REF = {}; // cache of referenced-table rows for FK dropdowns
 
 function toast(msg, kind) {
 	const t = document.getElementById("toast");
-	t.className = "toast show " + (kind || "");
+	t.className = `toast show ${kind || ""}`;
 	t.textContent = msg;
 	setTimeout(() => (t.className = "toast"), 2800);
 }
@@ -30,7 +30,7 @@ async function api(method, path, body) {
 	}
 	if (!r.ok)
 		throw new Error(
-			data && data.detail ? JSON.stringify(data.detail) : "HTTP " + r.status,
+			data?.detail ? JSON.stringify(data.detail) : `HTTP ${r.status}`,
 		);
 	return data;
 }
@@ -50,7 +50,7 @@ function optionLabel(r) {
 		r.title ||
 		r.full_name ||
 		r.role ||
-		(r.id ? String(r.id).slice(0, 8) + "…" : "(row)");
+		(r.id ? `${String(r.id).slice(0, 8)}…` : "(row)");
 	return r.role && r.employer ? `${base} · ${r.role}` : base;
 }
 // A referenced row is selectable unless its status marks it clearly inactive.
@@ -70,7 +70,7 @@ function isActiveRef(r) {
 async function ensureRef(table) {
 	if (!REF[table]) {
 		try {
-			REF[table] = await api("GET", "/api/" + table);
+			REF[table] = await api("GET", `/api/${table}`);
 		} catch {
 			REF[table] = [];
 		}
@@ -113,14 +113,13 @@ async function selectEntity(table) {
 	const main = document.getElementById("main");
 	main.innerHTML = '<div class="empty">Loading…</div>';
 	try {
-		rows = await api("GET", "/api/" + table);
+		rows = await api("GET", `/api/${table}`);
 		await ensureRefsFor(m);
 	} catch (e) {
-		main.innerHTML =
-			'<div class="empty">Could not load. ' + esc(e.message) + "</div>";
+		main.innerHTML = `<div class="empty">Could not load. ${esc(e.message)}</div>`;
 		return;
 	}
-	const ct = document.getElementById("ct-" + table);
+	const ct = document.getElementById(`ct-${table}`);
 	if (ct) ct.textContent = rows.length;
 	if (table === "work_schedule") {
 		initSchedule();
@@ -131,7 +130,7 @@ async function selectEntity(table) {
 }
 
 function initSchedule() {
-	const jobs = (REF["jobs"] || []).filter(isActiveRef);
+	const jobs = (REF.jobs || []).filter(isActiveRef);
 	let jid = SCHED.job_id;
 	if (!jid || !jobs.some((j) => String(j.id) === String(jid)))
 		jid = jobs.length ? jobs[0].id : "";
@@ -179,7 +178,7 @@ function loadJobSlots(jobId) {
 
 function renderScheduleEditor(m) {
 	const main = document.getElementById("main");
-	const jobs = (REF["jobs"] || []).filter(isActiveRef);
+	const jobs = (REF.jobs || []).filter(isActiveRef);
 	const jobOpts = ['<option value="">— pick a job —</option>']
 		.concat(
 			jobs.map(
@@ -315,7 +314,7 @@ async function saveSchedule() {
 	);
 	try {
 		for (const d of desired) await api("POST", "/api/work_schedule", d); // add new first
-		for (const r of existing) await api("DELETE", "/api/work_schedule/" + r.id); // then remove old
+		for (const r of existing) await api("DELETE", `/api/work_schedule/${r.id}`); // then remove old
 		toast(
 			"Schedule saved (" +
 				desired.length +
@@ -326,7 +325,7 @@ async function saveSchedule() {
 		);
 		await selectEntity("work_schedule");
 	} catch (e) {
-		toast("Error: " + e.message, "err");
+		toast(`Error: ${e.message}`, "err");
 		selectEntity("work_schedule");
 	}
 }
@@ -344,13 +343,12 @@ function renderTable(m) {
 	const singleton = m.table === "profile";
 	const canAdd = !(singleton && rows.length >= 1);
 	const cols = m.columns;
-	const head =
-		cols
-			.map(
-				(c) =>
-					`<th>${esc(c.name)}${c.required ? '<span class="req">req</span>' : ""}${c.references ? '<span class="fk">fk</span>' : ""}</th>`,
-			)
-			.join("") + "<th></th>";
+	const head = `${cols
+		.map(
+			(c) =>
+				`<th>${esc(c.name)}${c.required ? '<span class="req">req</span>' : ""}${c.references ? '<span class="fk">fk</span>' : ""}</th>`,
+		)
+		.join("")}<th></th>`;
 	const body = rows
 		.map((r) => {
 			const tds = cols
@@ -422,7 +420,7 @@ async function openAdd() {
 	editing = null;
 	await ensureRefsFor(m);
 	document.getElementById("drawerTitle").textContent =
-		"Add " + m.table.replace(/s$/, "");
+		`Add ${m.table.replace(/s$/, "")}`;
 	const writable = m.columns.filter((c) => c.writable);
 	document.getElementById("form").innerHTML = writable
 		.map((c) => fieldHtml(c, ""))
@@ -434,7 +432,7 @@ async function openEdit(id) {
 	editing = rows.find((r) => r.id === id);
 	await ensureRefsFor(m);
 	document.getElementById("drawerTitle").textContent =
-		"Edit " + m.table.replace(/s$/, "");
+		`Edit ${m.table.replace(/s$/, "")}`;
 	const order = m.columns
 		.filter((c) => c.writable)
 		.concat(m.columns.filter((c) => c.managed));
@@ -471,10 +469,10 @@ async function save() {
 	const payload = readForm();
 	try {
 		if (editing) {
-			await api("PATCH", "/api/" + m.table + "/" + editing.id, payload);
+			await api("PATCH", `/api/${m.table}/${editing.id}`, payload);
 			toast("Saved", "ok");
 		} else {
-			await api("POST", "/api/" + m.table, payload);
+			await api("POST", `/api/${m.table}`, payload);
 			toast("Created", "ok");
 		}
 		// referenced lists may have changed (e.g. new job) — drop cache
@@ -482,24 +480,22 @@ async function save() {
 		closeDrawer();
 		selectEntity(current);
 	} catch (e) {
-		toast("Error: " + e.message, "err");
+		toast(`Error: ${e.message}`, "err");
 	}
 }
 async function del(id) {
 	const m = metaFor(current);
 	if (
-		!confirm(
-			"Delete this " + m.table.replace(/s$/, "") + "? This cannot be undone.",
-		)
+		!confirm(`Delete this ${m.table.replace(/s$/, "")}? This cannot be undone.`)
 	)
 		return;
 	try {
-		await api("DELETE", "/api/" + m.table + "/" + id);
+		await api("DELETE", `/api/${m.table}/${id}`);
 		REF[m.table] = undefined;
 		toast("Deleted", "ok");
 		selectEntity(current);
 	} catch (e) {
-		toast("Error: " + e.message, "err");
+		toast(`Error: ${e.message}`, "err");
 	}
 }
 
@@ -516,7 +512,7 @@ document.addEventListener("keydown", (e) => {
 	if (e.key === "Escape") closeDrawer();
 });
 
-loadEntities().catch((e) => {
+loadEntities().catch((_e) => {
 	document.getElementById("main").innerHTML =
 		'<div class="empty">API not reachable. Is the stack up?</div>';
 });
