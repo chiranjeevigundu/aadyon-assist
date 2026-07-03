@@ -137,7 +137,8 @@ export const api = {
         const res = await fetch(url, {
           method: "POST",
           headers: {
-            "Content-Type": "multipart/form-data",
+            // Do NOT set Content-Type manually here; fetch will automatically
+            // set it to multipart/form-data with the correct boundary string.
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: formData,
