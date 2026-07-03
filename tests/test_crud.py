@@ -6,7 +6,7 @@ import inspect
 import pytest
 from fastapi import HTTPException
 
-from app.models.tables import Entity
+from app.models.tables import ENTITIES, Entity
 from app.routers import crud
 from conftest import patch_query
 
@@ -21,6 +21,21 @@ def _endpoints(router):
 
 def _router():
     return _endpoints(crud.make_router(Entity("widgets", {"name": str, "color": str})))
+
+
+def test_create_false_skips_post_route():
+    eps = _endpoints(crud.make_router(Entity("widgets", {"name": str}, create=False)))
+    assert ("POST", "/api/widgets") not in eps
+    assert ("GET", "/api/widgets") in eps            # the rest still generated
+    assert ("PATCH", "/api/widgets/{row_id}") in eps
+
+
+def test_document_tables_have_no_generic_create():
+    # POST /api/documents belongs to the multipart upload route; extractions are
+    # pipeline-created. A generic JSON POST here would collide (route conflict).
+    by_table = {e.table: e for e in ENTITIES}
+    assert by_table["documents"].create is False
+    assert by_table["document_extractions"].create is False
 
 
 def test_create_drops_unknown_fields(monkeypatch):

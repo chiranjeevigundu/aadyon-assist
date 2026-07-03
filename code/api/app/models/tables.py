@@ -14,6 +14,9 @@ class Entity:
     table: str
     columns: dict[str, Any]
     order_by: str = "updated_at DESC"
+    # False for tables whose rows are created elsewhere (a dedicated route or a
+    # pipeline) — the generic POST is skipped so routes don't collide.
+    create: bool = True
 
 
 ENTITIES: list[Entity] = [
@@ -120,11 +123,13 @@ ENTITIES: list[Entity] = [
         "documents",
         {"filename": str, "mime_type": str, "size_bytes": int, "status": str},
         order_by="created_at DESC",
+        create=False,  # created via the multipart upload route (POST /api/documents)
     ),
     Entity(
         "document_extractions",
         {"document_id": UUID, "kind": str, "summary": str, "status": str},
         order_by="created_at DESC",
+        create=False,  # created by the analysis pipeline only
     ),
     # --- Agentic org layer ---
     Entity(

@@ -46,3 +46,40 @@ def test_download_fileobj(monkeypatch):
     storage.download_fileobj("test/object.txt", file_obj)
 
     assert file_obj.getvalue() == b"downloaded content"
+
+
+def _local_settings(tmp_path):
+    """Settings with no S3 keys -> the local-disk fallback path."""
+    s = MagicMock()
+    s.s3_access_key = ""
+    s.s3_secret_key = ""
+    s.artifacts_dir = tmp_path
+    return s
+
+
+def test_local_fallback_roundtrip(monkeypatch, tmp_path):
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _local_settings(tmp_path))
+
+    storage.upload_fileobj(io.BytesIO(b"local content"), "uid/report.pdf", "application/pdf")
+    assert (tmp_path / "uploads" / "uid" / "report.pdf").read_bytes() == b"local content"
+
+    out = io.BytesIO()
+    storage.download_fileobj("uid/report.pdf", out)
+    assert out.getvalue() == b"local content"
+
+
+def test_local_fallback_rejects_traversal(monkeypatch, tmp_path):
+    import pytest
+
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _local_settings(tmp_path))
+
+    for bad_key in ("uid/..", "../escape.txt", ".", ""):
+        with pytest.raises(storage.StorageError):
+            storage.upload_fileobj(io.BytesIO(b"x"), bad_key)
+
+    with pytest.raises(storage.StorageError):
+        storage.download_fileobj("uid/missing.txt", io.BytesIO())
