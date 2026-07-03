@@ -34,26 +34,27 @@ def make_router(entity: Entity) -> APIRouter:
     def list_rows():
         return query(f"SELECT * FROM {table} ORDER BY {order_by}")
 
-    @router.post("", status_code=201)
-    def create_row(payload: PayloadModel):
-        data = payload.model_dump(exclude_unset=True)
-        if not data:
-            raise HTTPException(400, f"No valid fields. Allowed: {sorted(allowed)}")
-        # Server-set the owner; RLS WITH CHECK requires it to match the current user.
-        if per_user:
-            data["user_id"] = current_user_id()
-        cols = ", ".join(data.keys())
-        ph = ", ".join(["%s"] * len(data))
-        try:
-            rows = query(
-                f"INSERT INTO {table} ({cols}) VALUES ({ph}) RETURNING *",
-                tuple(data.values()), commit=True,
-            )
-        # ValueError: psycopg2's adaptation layer raises it for values Postgres
-        # can't hold (e.g. NUL bytes in text) — invalid input, not a server bug.
-        except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError, ValueError) as e:
-            raise HTTPException(422, str(e)) from e
-        return rows[0]
+    if table not in {"documents", "document_extractions"}:
+        @router.post("", status_code=201)
+        def create_row(payload: PayloadModel):
+            data = payload.model_dump(exclude_unset=True)
+            if not data:
+                raise HTTPException(400, f"No valid fields. Allowed: {sorted(allowed)}")
+            # Server-set the owner; RLS WITH CHECK requires it to match the current user.
+            if per_user:
+                data["user_id"] = current_user_id()
+            cols = ", ".join(data.keys())
+            ph = ", ".join(["%s"] * len(data))
+            try:
+                rows = query(
+                    f"INSERT INTO {table} ({cols}) VALUES ({ph}) RETURNING *",
+                    tuple(data.values()), commit=True,
+                )
+            # ValueError: psycopg2's adaptation layer raises it for values Postgres
+            # can't hold (e.g. NUL bytes in text) — invalid input, not a server bug.
+            except (psycopg2.errors.IntegrityError, psycopg2.errors.DataError, ValueError) as e:
+                raise HTTPException(422, str(e)) from e
+            return rows[0]
 
     @router.patch("/{row_id}")
     def update_row(row_id: UUID, payload: PayloadModel):
