@@ -176,6 +176,23 @@ The app can ingest entities you (or an AI assistant) extract from emails, statem
 
 `bills`/`subscriptions`/`debts` require an `amount`/`balance`; items without a known amount are better added as `deadlines` (only `title` + `due_date` are required).
 
+## Development vs. production environments
+`docker-compose.yml` is the production definition — it's what runs on the always-on server.
+`docker-compose.dev.yml` is an additive overlay for local iteration (hot-reload API via bind
+mount + `--reload`, Postgres port published to the host for psql/GUI access, skips `backup`/`ntfy`
+since dev data is throwaway). Both read from `.env` + `secrets/*.txt` on whichever machine you're
+on — those are gitignored per-machine state, never shared between environments.
+
+Spin either up from scratch:
+```bash
+just bootstrap-dev  && just up-dev    # local dev: hot reload, exposed DB port, no backup/ntfy
+just bootstrap-prod && just up-prod   # production: matches the deployed server exactly
+```
+`bootstrap-*` copies the matching `.env.*.example` to `.env` and generates `secrets/db_password.txt`
++ `secrets/jwt_secret.txt` if they don't already exist — it never overwrites an existing `.env` or
+secret. Fill in `OPENROUTER_API_KEY` (and any connector secrets you want to test) in `.env`
+afterward. `just up`/`just down` remain aliases for `up-prod`/`down-prod` (unchanged from before).
+
 ## Moving between machines
 The schema in `code/db/migrations/` is the contract. `pg_dump`/`pg_restore` the data, point the
 same compose file at the new volume, run `just migrate-baseline` once, and everything ports as-is.

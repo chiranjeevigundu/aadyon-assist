@@ -1,0 +1,17 @@
+# Local development overlay — additive only, never changes prod behavior.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# (or `just up-dev`). The base docker-compose.yml is the production definition as
+# deployed on the Mac Mini; this file only adds dev conveniences on top of it.
+services:
+  # Expose Postgres to the host for local psql / GUI clients. Not done in prod —
+  # the DB should only be reachable from other containers on the compose network.
+  db:
+    ports:
+      - "${DEV_DB_PORT:-5432}:5432"
+
+  # Bind-mount source + run uvicorn with --reload so code edits apply without a
+  # rebuild. Overrides the image's baked-in CMD (see api/Dockerfile).
+  api:
+    volumes:
+      - ./code/api:/srv/api
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
