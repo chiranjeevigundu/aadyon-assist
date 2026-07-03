@@ -193,12 +193,12 @@ async function sendMessage() {
 									.insertAdjacentHTML("beforebegin", toolHtml);
 							}
 
-							if (data.chunk) {
+							if (data.delta) {
 								if (firstChunk) {
 									bubble.innerHTML = "";
 									firstChunk = false;
 								}
-								responseText += data.chunk;
+								responseText += data.delta;
 								bubble.innerHTML = esc(responseText);
 							}
 

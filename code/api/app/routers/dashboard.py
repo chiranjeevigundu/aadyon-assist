@@ -33,7 +33,7 @@ def agency_page():
 
 @router.get("/assistant")
 def assistant_page():
-    """Personal Assistant (Jarvis) chat interface."""
+    """Personal Assistant (Aadyon Assist) chat interface."""
     return FileResponse(get_settings().dashboard_dir / "assistant.html")
 
 

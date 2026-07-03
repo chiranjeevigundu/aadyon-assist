@@ -4,7 +4,7 @@ A self-hosted, multi-user **life-ops platform** with a conversational assistant.
 auditable source of truth for each user's deadlines, debts, bills, subscriptions, work and
 income, immigration status, and goals — and layers four capabilities on top of it: a **Digital
 Me** scoring model, an **agentic org** that reasons over that data, an **email ingest** pipeline
-that turns inbox noise into reviewable to-dos, and a **Jarvis-style chat assistant** that can act
+that turns inbox noise into reviewable to-dos, and an **Aadyon Assist chat assistant** that can act
 on the user's own records. It runs on a stack (Postgres + Docker + Python) designed to move,
 unchanged, between a dev machine and an always-on server.
 
@@ -312,7 +312,7 @@ and `/api/auth/*`. Data is scoped to the token's user by RLS.
 - `POST /api/auth/login` (`{email, password}`) → `{token, user}`.
 - `GET /api/auth/me` → the current user.
 
-**Assistant (Jarvis)**
+**Assistant (Aadyon Assist)**
 - `POST /api/assistant/chat` (`{message, conversation_id?}`) → `{conversation_id, reply, actions, proposals}`.
 - `POST /api/assistant/chat/stream` — SSE variant (streamed reply + terminal actions/proposals).
 - `GET/POST /api/assistant/conversations` · `GET /api/assistant/conversations/{id}/messages`.
