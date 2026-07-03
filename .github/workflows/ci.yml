@@ -19,19 +19,8 @@ jobs:
         run: |
           pip install -r code/api/requirements-dev.txt
           ruff check .
-      - name: Dashboard JS syntax (inline scripts + assets)
-        run: |
-          node -e '
-            const fs=require("fs"), vm=require("vm");
-            for (const f of fs.readdirSync("code/dashboard")) {
-              if (!f.endsWith(".html")) continue;
-              const h=fs.readFileSync("code/dashboard/"+f,"utf8");
-              for (const m of h.matchAll(/<script>([\s\S]*?)<\/script>/g)) new vm.Script(m[1]);
-              console.log("ok:", f);
-            }
-            const a="code/dashboard/assets";
-            for (const f of fs.readdirSync(a)) if (f.endsWith(".js")) { new vm.Script(fs.readFileSync(a+"/"+f,"utf8")); console.log("ok:", f); }
-          '
+      - name: Dashboard JS syntax (Biome)
+        run: npx @biomejs/biome ci code/dashboard/assets
       - name: Validate docker-compose
         run: |
           mkdir -p secrets && printf 'ci' > secrets/db_password.txt

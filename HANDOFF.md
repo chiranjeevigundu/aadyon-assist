@@ -10,8 +10,8 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ## Current state (full brief — written for a cold start)
 
-**The original ROADMAP build-out is COMPLETE** once `feat/voice` (open PR) merges.
-What exists on `main` + that PR, all verified by CI (ruff, gitleaks, pytest, Docker smoke +
+**The original ROADMAP build-out is COMPLETE**.
+What exists on `main`, all verified by CI (ruff, gitleaks, pytest, Docker smoke +
 full-surface Schemathesis fuzz):
 
 - **Platform:** multi-user FastAPI + Postgres 16 (RLS isolation via `app.current_user_id` GUC,
@@ -51,6 +51,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 3. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
    top-down. Follow the session start/end rituals in AGENTS.md — pull main, green `just test`
    baseline before changes, finish with a PR + this file updated in the same PR.
+>>>>>>> origin/main
 
 ## Known constraints for whoever picks this up
 
@@ -68,6 +69,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-02 | Antigravity | feat/dashboard-js-extraction | Extracted all inline `<script>` blocks from `dashboard/*.html` into separate `assets/*.js` files, added a `biome.json` config, and updated the CI pipeline to use Biome instead of node-vm. | JS extraction complete, CI passes. |
 | 2026-07-02 | Claude | `feat/voice` (PR) | P5 Voice: STT mic + TTS speak-replies in the Assistant tab (lazy voice.ts, iOS permissions/plugin); fixed mobile tsc error | typecheck clean, pytest 146 green; needs EAS build for native voice |
 | 2026-07-02 | Claude | `feat/proactive-alerts` (PR) | P5 proactive intelligence: per-user ntfy topics, alerts read-model + digest push, GET /api/alerts, PATCH /api/auth/me | pytest 146 green, ruff clean; merge when CI green |
 | 2026-07-02 | Claude | `fix/ci-uuid-lint` (PR) | CI red-to-green: `register_uuid()` in db/session.py (UUID params 500'd under write-fuzzing) + removed unused import in routers/documents.py | pytest 140 green, ruff clean; merge when CI green |
