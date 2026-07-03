@@ -29,7 +29,7 @@ export default function AssistantScreen() {
       id: nextId(),
       role: "assistant",
       text:
-        "Hi — I'm your life-ops assistant. Ask me about your finances, visa, or goals, " +
+        "Hi — I'm your Aadyon Assistant. Ask me about your finances, visa, or goals, " +
         "or tell me to update things (e.g. \"add a deadline to renew my passport next month\").",
     },
   ]);
