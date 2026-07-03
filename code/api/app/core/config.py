@@ -13,7 +13,11 @@ class Settings:
         self.db_host = os.getenv("DB_HOST", "db")
         self.db_port = int(os.getenv("DB_PORT", "5432"))
         self.db_name = os.getenv("POSTGRES_DB", "aadyon_assist")
-        self.db_user = os.getenv("POSTGRES_USER", "aadyon")
+        # DB_USER (api/briefing/agency) is the restricted, non-superuser role RLS
+        # actually applies to; POSTGRES_USER (migrate) is the DDL-privileged
+        # bootstrap superuser, which always bypasses RLS -- see
+        # 202607032100_restricted_app_role.sql.
+        self.db_user = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "aadyon")
         self.db_password_file = os.getenv("DB_PASSWORD_FILE", "/run/secrets/db_password")
         # app/core/config.py -> app -> api -> code ; dashboard sits beside `code/api`
         # in the repo (code/dashboard) and beside `/srv/api` in the image (/srv/dashboard).

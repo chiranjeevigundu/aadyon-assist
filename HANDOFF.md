@@ -16,6 +16,10 @@ full-surface Schemathesis fuzz):
 
 - **Platform:** multi-user FastAPI + Postgres 16 (RLS isolation via `app.current_user_id` GUC,
   set in `db/session.py`; JWT auth in `routers/auth.py`; signup seeds a per-user agent org).
+  The API/briefing/agency services connect as the restricted `aadyon_app` role (`DB_USER` in
+  docker-compose.yml) — never the `POSTGRES_USER` bootstrap superuser, which always bypasses RLS
+  regardless of FORCE ROW LEVEL SECURITY (see `202607032100_restricted_app_role.sql`). `migrate`
+  is the only service still using the superuser, for DDL/extensions.
 - **Aadyon Assist:** `services/assistant.py` + `routers/assistant.py` (sync + SSE streaming);
   write tools edit the user's own records; external side effects go through `propose_action`
   approval (golden rule #2). LLM via LiteLLM (`services/llm.py`, frozen `chat()` surface).
@@ -55,13 +59,36 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 - 2026-07-02 | Gemini | Finished final smoke test debugging. Fixed 500 error in `bank_accounts` endpoints caused by missing `balance` column in the DB schema by adding a new yoyo migration. The Schemathesis fuzzing step is now 100% green. The owner successfully deployed a completely fresh copy to their production Mac Mini server.
 
 ## Current state
-- The branch `feat/assistant-context` was pushed with bugfixes for the assistant's context when reading documents and the initial seeding of the user's profile upon signup.
-- The platform is now fully deployed and running successfully on the owner's Mac Mini.
-- **The original ROADMAP build-out is 100% COMPLETE.**
+- **CRITICAL, fixed on `main` this session:** the RLS isolation model described above had never
+  actually been enforced. `POSTGRES_USER` (the role every service connected as) is the Postgres
+  bootstrap role, which is always a superuser and always bypasses row-level security — Postgres
+  refuses to let that specific role ever drop `SUPERUSER` ("the bootstrap user must have the
+  SUPERUSER attribute"), so `ENABLE`/`FORCE ROW LEVEL SECURITY` on every per-user table was
+  silently a no-op. Every user's `profile`/`deadlines`/`debts`/`documents`/etc. rows have been
+  fully visible to every other user's queries since the multiuser migration — on local dev *and*
+  the deployed Mac Mini. Root-caused and fixed via `202607032100_restricted_app_role.sql` (new
+  non-superuser `aadyon_app` role + grants) + `DB_USER` in docker-compose.yml (api/briefing/agency
+  connect as it; `migrate` keeps the superuser for DDL) + `debt_summary` view given
+  `security_invoker=true` (views check RLS as the *owner* by default, which was still the
+  superuser). Verified with a 240-request concurrent multi-user leak test (0 leaks after fix, was
+  reproducible even non-concurrently before) — see session log below.
+- Also fixed in the same pass: `db/session.py` used `psycopg2.pool.SimpleConnectionPool`, which
+  is documented as unsafe across threads; FastAPI runs sync route handlers on a worker threadpool,
+  so concurrent requests raced on the pool. Switched to `ThreadedConnectionPool`. Real bug, but
+  turned out not to be the cause of the cross-user leak above (that leak was 100% reproducible
+  with zero concurrency) — keep both fixes.
+- The branch `feat/assistant-context` (now on `main`) also carries the assistant document-context
+  fixes: `document_id` passed in the frontend chat message, `profile` row seeded on signup.
+- **The original ROADMAP build-out is otherwise 100% COMPLETE.**
 
 ## Next steps (for the next agent or human)
-- **Claude**: All milestone features have been implemented and deployed! The latest fixes ensure the assistant has full context when interacting with uploaded documents and properly tracks user names. Await new instructions from the owner on what to build next, and be sure to add them to the ROADMAP.md before starting work.
-- **Human**: Ensure `feat/assistant-context` is merged into `main` and deploy on the remote server by running `git pull` and `docker compose up -d --build`.
+- **Human — URGENT, before anything else:** the RLS fix above must be deployed to the Mac Mini
+  ASAP; production has had the same cross-tenant data leak this whole time. Standard deploy ritual
+  applies: `git pull --ff-only && docker compose up -d --build migrate api briefing agency`. The
+  `migrate` step both creates `aadyon_app` and sets its password from the existing `db_password`
+  secret (no new secret file needed) — just confirm `migrate` exits 0 before the others come up.
+- **Claude**: Await new instructions from the owner on what to build next, and be sure to add them
+  to the ROADMAP.md before starting work.
 
 ## Known constraints for whoever picks this up
 
@@ -79,6 +106,7 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-03 | Claude | `fix/rls-superuser-bypass` (PR) | Root-caused and fixed a cross-tenant data leak reported by the owner while re-testing signup: the API's DB role was the Postgres bootstrap superuser, which always bypasses RLS. Added `202607032100_restricted_app_role.sql` (new `aadyon_app` role + grants + `debt_summary security_invoker`), `DB_USER` wiring in docker-compose.yml + core/config.py, and separately fixed a real (but not-the-cause) thread-safety bug in `db/session.py` (`SimpleConnectionPool` → `ThreadedConnectionPool`). Verified with pytest (150 green), ruff, and a live 240-request concurrent multi-user leak test (0 leaks post-fix; the original leak reproduced with zero concurrency, confirming the pool wasn't the cause) against the locally-rebuilt stack. | Tests/lint green, pushed to remote; PR open. Owner still needs to merge + deploy to the Mac Mini urgently (see "Next steps" above) — production has the same leak right now. |
 | 2026-07-03 | Antigravity | feat/assistant-context | Fixed assistant unable to read uploaded documents by passing `document_id` in frontend message; seeded `profile` row with user's name on signup. | Tests and linter pass, pushed to remote. |
 | 2026-07-03 | Antigravity | feat/aadyon-assist-rename | Renamed Jarvis to Aadyon Assist and fixed SSE chunk parsing in dashboard | Tests pass, pushed to remote |
 | 2026-07-03 | Claude | claude/antigravity-recent-changes-t5sd1n (PR) | Review/refactor of PRs #27–#32: removed unsafe duplicate RequestValidationError handler (debug print, no jsonable_encoder), Entity.create flag replaces hardcoded table set in crud.py, storage.py dedupe + path-traversal guard on the local fallback, documents.py dot-only filename fix, api.ts new-Promise(async) antipattern fixed (upload could hang the chat UI), picker permission/error handling | pytest 150 green, ruff clean, mobile tsc clean |
