@@ -51,7 +51,17 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
 3. New ideas go to ROADMAP.md first, with reuse pointers + acceptance criteria, then build
    top-down. Follow the session start/end rituals in AGENTS.md — pull main, green `just test`
    baseline before changes, finish with a PR + this file updated in the same PR.
->>>>>>> origin/main
+
+- 2026-07-02 | Gemini | Finished final smoke test debugging. Fixed 500 error in `bank_accounts` endpoints caused by missing `balance` column in the DB schema by adding a new yoyo migration. The Schemathesis fuzzing step is now 100% green. The owner successfully deployed a completely fresh copy to their production Mac Mini server.
+
+## Current state
+- The branch `feat/final-features` is pushed and all CI checks (pytest, Schemathesis, smoke tests) pass.
+- The platform is now fully deployed and running successfully on the owner's Mac Mini.
+- **The original ROADMAP build-out is 100% COMPLETE.**
+
+## Next steps (for the next agent or human)
+- **Claude**: All milestone features have been implemented and deployed! Await new instructions from the owner on what to build next, and be sure to add them to the ROADMAP.md before starting work.
+- **Human**: Ensure `feat/final-features` is merged into `main` if not already done.
 
 ## Known constraints for whoever picks this up
 
