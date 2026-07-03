@@ -7,13 +7,21 @@ id in the `current_user` ContextVar. Every `query()` opens a transaction, sets t
 GUC is transaction-local and the transaction always ends per call, so it never
 bleeds across pooled connections. `query_unscoped()` skips the GUC for the auth
 table (users) and global tables (model_routes).
+
+Uses `ThreadedConnectionPool`, not `SimpleConnectionPool`: FastAPI runs sync `def`
+route handlers (e.g. routers/crud.py) on a worker threadpool, so concurrent
+requests call getconn()/putconn() from multiple threads. SimpleConnectionPool
+has no locking and is documented as unsafe across threads — under concurrent
+load it can hand the same connection to two threads at once, letting one
+request's query interleave with another's mid-transaction and leak rows across
+the RLS boundary. ThreadedConnectionPool wraps the same calls in a lock.
 """
 import contextvars
 from contextlib import contextmanager
 
 import psycopg2
 import psycopg2.extras
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import ThreadedConnectionPool
 
 from app.core.config import get_settings
 
@@ -22,7 +30,7 @@ from app.core.config import get_settings
 # once, at import time — otherwise every UUID param raises "can't adapt type 'UUID'".
 psycopg2.extras.register_uuid()
 
-_pool: SimpleConnectionPool | None = None
+_pool: ThreadedConnectionPool | None = None
 
 # The current request's user id (str UUID) or None. Set by the auth dependency
 # (async, so it propagates into sync endpoints' threadpool context) and by the
@@ -41,11 +49,11 @@ def current_user_id() -> str | None:
     return current_user.get()
 
 
-def pool() -> SimpleConnectionPool:
+def pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None:
         s = get_settings()
-        _pool = SimpleConnectionPool(
+        _pool = ThreadedConnectionPool(
             minconn=1,
             maxconn=10,
             host=s.db_host,
