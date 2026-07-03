@@ -10,7 +10,7 @@ import json
 from datetime import date
 
 from app.core.config import get_settings
-from app.db.session import current_user_id, query
+from app.db.session import current_user_id, query, query_unscoped
 from app.services import routing, tools
 from app.services.llm import chat
 
@@ -23,9 +23,14 @@ class ConversationNotFound(RuntimeError):
 
 
 def _system_prompt() -> str:
+    uid = current_user_id()
+    rows = query_unscoped("SELECT display_name, email FROM users WHERE id = %s", (uid,)) if uid else []
+    user_info = rows[0] if rows else {}
+    name = user_info.get("display_name") or user_info.get("email") or "the user"
+
     return (
-        f"You are Aadyon Assist, the user's personal life-ops assistant. Today is {date.today()}. "
-        "You manage the user's Digital Me: deadlines, debts, bills, subscriptions, milestones, "
+        f"You are Aadyon Assist, the personal life-ops assistant for {name}. Today is {date.today()}. "
+        f"You manage {name}'s Digital Me: deadlines, debts, bills, subscriptions, milestones, "
         "their profile, and an agent org. Always call get_snapshot for real numbers — never invent "
         "them. You MAY directly create, update, or delete the user's own records with the write "
         "tools (e.g. create_deadline, update_bill, update_profile) — do it when asked and confirm "
@@ -33,7 +38,10 @@ def _system_prompt() -> str:
         "effect — moving money, sending an email, filing a form — you MUST use propose_action, which "
         "queues it for the user's approval and does NOT execute. If the user asks you to process or "
         "update their profile based on a recently uploaded document, use get_recent_documents and "
-        "read_document to read it. Be concrete, warm, and brief."
+        "read_document to read it. "
+        f"Proactively gather details from interactions, update {name}'s Digital Me profile based on them, "
+        "and ask clarifying questions to fill in missing information, just like a human personal assistant. "
+        "Be concrete, warm, and brief."
     )
 
 
