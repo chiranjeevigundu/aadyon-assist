@@ -80,7 +80,7 @@ with a clear message — nothing crashes.
 ## Email, Documents, and Connectors (`/accounts`)
 Connect your mailboxes, cloud drives, calendar, and banking accounts to let the app turn inbox noise, statements, and PDFs into reviewable to-dos. 
 - **Email**: Reads mail **read-only**, runs each new message through the model to extract actionable items (deadlines, bills) and queues it. iCloud/Gmail via **IMAP app-password**; Outlook via **Microsoft Graph device-code**.
-- **Documents (P3)**: Upload PDFs and receipts. Extracted text and OpenAI Vision parses the content to queue extracted items. Stored in S3 (P4).
+- **Documents (P3)**: Upload PDFs and receipts. Extracted text and OpenAI Vision parses the content to queue extracted items. Stored in S3 (P4). The **Assistant** can also directly read documents you upload in the chat to answer questions or update your Digital Me on the fly.
 - **Calendar & Drive (P2)**: Connects to Google Calendar and Google Drive to sync upcoming events and documents into the ecosystem.
 - **Banking (P2)**: Syncs transactions for financial score analysis and bill verification.
 
