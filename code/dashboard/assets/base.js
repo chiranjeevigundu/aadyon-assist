@@ -113,6 +113,7 @@ const NAV_LINKS = [
 	["/", "Digital Me"],
 	["/tracker", "Tracker"],
 	["/agency", "Agency"],
+	["/assistant", "Assistant"],
 	["/data", "Data"],
 	["/accounts", "Accounts"],
 	["/docs", "API"],
