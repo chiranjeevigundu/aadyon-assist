@@ -309,12 +309,12 @@ async function uploadDocument(file) {
 
 		document.getElementById(bubbleId).innerHTML =
 			"✓ Document uploaded successfully! It has been queued for analysis and will appear in your Agency tab for review shortly.";
-            
-        // Automatically send a message so the assistant knows a document was just uploaded
-        setTimeout(() => {
-            domInput.value = `I just uploaded a document named "${file.name}".`;
-            sendMessage();
-        }, 500);
+
+		// Automatically send a message so the assistant knows a document was just uploaded
+		setTimeout(() => {
+			domInput.value = `I just uploaded a document named "${file.name}".`;
+			sendMessage();
+		}, 500);
 	} catch (e) {
 		document.getElementById(bubbleId).innerHTML =
 			`<span style="color:var(--red)">⚠️ Upload failed: ${esc(e.message)}</span>`;
