@@ -1,0 +1,20 @@
+{
+  "linter": {
+    "rules": {
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUndeclaredVariables": "off"
+      },
+      "suspicious": {
+        "useIterableCallbackReturn": "off",
+        "noAssignInExpressions": "off"
+      },
+      "style": {
+        "useConst": "off"
+      }
+    }
+  },
+  "javascript": {
+    "globals": ["$", "esc", "money", "money2", "num", "getToken", "setToken", "clearToken", "fetchApi", "document", "window", "localStorage", "fetch", "alert", "console", "setTimeout"]
+  }
+}
