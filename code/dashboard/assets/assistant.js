@@ -4,6 +4,8 @@ const domHist = document.getElementById("chatHistory");
 const domInput = document.getElementById("chatInput");
 const domSend = document.getElementById("sendBtn");
 const domNew = document.getElementById("newChatBtn");
+const domUploadBtn = document.getElementById("uploadBtn");
+const domFileInput = document.getElementById("fileUpload");
 
 let activeCid = null;
 
@@ -202,6 +204,22 @@ async function sendMessage() {
 								bubble.innerHTML = esc(responseText);
 							}
 
+							if (data.done) {
+								if (data.actions && data.actions.length > 0) {
+									const metaHtml = `<div class="meta">✓ ${esc(data.actions.join(" · "))}</div>`;
+									document
+										.getElementById(`container_${bubbleId}`)
+										.insertAdjacentHTML("beforeend", metaHtml);
+								}
+								if (data.proposals && data.proposals.length > 0) {
+									const pText = `${data.proposals.length} proposal${data.proposals.length > 1 ? "s" : ""} awaiting your approval — review on the Agency console.`;
+									const propHtml = `<div class="proposal">${pText}</div>`;
+									document
+										.getElementById(`container_${bubbleId}`)
+										.insertAdjacentHTML("beforeend", propHtml);
+								}
+							}
+
 							scrollToBottom();
 						} catch (e) {
 							console.error("Parse error chunk", dataStr, e);
@@ -243,6 +261,63 @@ domNew.addEventListener("click", () => {
 	domHist.innerHTML = `<div class="empty" style="text-align:center;margin-top:40px">Send a message to start a new conversation.</div>`;
 	domInput.focus();
 });
+
+domUploadBtn.addEventListener("click", () => domFileInput.click());
+domFileInput.addEventListener("change", async (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+	e.target.value = "";
+	await uploadDocument(file);
+});
+
+async function uploadDocument(file) {
+	domInput.disabled = true;
+	domSend.disabled = true;
+
+	const bubbleId = `ast_${Date.now()}`;
+	domHist.insertAdjacentHTML(
+		"beforeend",
+		`
+        <div class="msg assistant" id="container_${bubbleId}">
+            <div class="msg-bubble" id="${bubbleId}"><span class="empty">Uploading document...</span></div>
+        </div>
+    `,
+	);
+	scrollToBottom();
+
+	try {
+		const token = getToken();
+		const formData = new FormData();
+		formData.append("file", file);
+
+		const res = await fetch("/api/documents", {
+			method: "POST",
+			headers: {
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: formData,
+		});
+
+		if (res.status === 401) {
+			logout();
+			throw new Error("Unauthorized");
+		}
+		if (!res.ok) {
+			const txt = await res.text().catch(() => "");
+			throw new Error(txt || `HTTP ${res.status}`);
+		}
+
+		document.getElementById(bubbleId).innerHTML =
+			"✓ Document uploaded successfully! It has been queued for analysis and will appear in your Agency tab for review shortly.";
+	} catch (e) {
+		document.getElementById(bubbleId).innerHTML =
+			`<span style="color:var(--red)">⚠️ Upload failed: ${esc(e.message)}</span>`;
+	} finally {
+		domInput.disabled = false;
+		domSend.disabled = false;
+		scrollToBottom();
+	}
+}
 
 // Init
 loadConversations();
