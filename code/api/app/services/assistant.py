@@ -31,7 +31,9 @@ def _system_prompt() -> str:
         "tools (e.g. create_deadline, update_bill, update_profile) — do it when asked and confirm "
         "what changed, mentioning the affected item. For anything with a real-world EXTERNAL side "
         "effect — moving money, sending an email, filing a form — you MUST use propose_action, which "
-        "queues it for the user's approval and does NOT execute. Be concrete, warm, and brief."
+        "queues it for the user's approval and does NOT execute. If the user asks you to process or "
+        "update their profile based on a recently uploaded document, use get_recent_documents and "
+        "read_document to read it. Be concrete, warm, and brief."
     )
 
 
