@@ -79,14 +79,24 @@ SHAs); on the server run `just migrate` (or baseline once if pre-yoyo).
   with zero concurrency) — keep both fixes.
 - The branch `feat/assistant-context` (now on `main`) also carries the assistant document-context
   fixes: `document_id` passed in the frontend chat message, `profile` row seeded on signup.
+- **New this session, on top of the RLS fix:** `feat/dev-prod-environments` (branched from
+  `fix/rls-superuser-bypass`, so it needs that PR merged first, or a rebase onto `main` after) adds
+  `docker-compose.dev.yml` (additive overlay: hot-reload API bind mount + `--reload`, Postgres port
+  published to the host, skips `backup`/`ntfy`) plus `.env.development.example` /
+  `.env.production.example` and `just bootstrap-dev` / `bootstrap-prod` / `up-dev` / `up-prod` for
+  spinning either environment up from scratch. Production (`docker-compose.yml`, `just up`/`down`)
+  is untouched. Verified live: dev stack rebuilt with hot reload + exposed DB port, fresh signup +
+  `/api/assistant/chat` round-trip succeeded using the owner's OpenRouter key in the local `.env`.
 - **The original ROADMAP build-out is otherwise 100% COMPLETE.**
 
 ## Next steps (for the next agent or human)
-- **Human — URGENT, before anything else:** the RLS fix above must be deployed to the Mac Mini
-  ASAP; production has had the same cross-tenant data leak this whole time. Standard deploy ritual
+- **Human — URGENT, before anything else:** the RLS fix must be deployed to the Mac Mini ASAP;
+  production has had the same cross-tenant data leak this whole time. Standard deploy ritual
   applies: `git pull --ff-only && docker compose up -d --build migrate api briefing agency`. The
   `migrate` step both creates `aadyon_app` and sets its password from the existing `db_password`
   secret (no new secret file needed) — just confirm `migrate` exits 0 before the others come up.
+- **Human:** merge PRs in order — `fix/rls-superuser-bypass` first, then `feat/dev-prod-environments`
+  (or rebase it onto `main` post-merge; it depends on the `aadyon_app` role/`DB_USER` wiring).
 - **Claude**: Await new instructions from the owner on what to build next, and be sure to add them
   to the ROADMAP.md before starting work.
 
