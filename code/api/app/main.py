@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from fastapi.exceptions import RequestValidationError
 from app.core.config import get_settings
 from app.routers import agency, assistant, auth, dashboard, email, system, calendar, drive, bank, documents
 from app.routers.auth import get_current_user
@@ -24,14 +23,6 @@ def create_app() -> FastAPI:
         if "%00" in q or "\x00" in q:
             return JSONResponse({"detail": "NUL bytes are not allowed"}, status_code=422)
         return await call_next(request)
-
-    @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        print(f"Validation error on {request.url}: {exc.errors()}", flush=True)
-        return JSONResponse(
-            status_code=422,
-            content={"detail": exc.errors()}
-        )
 
     # CORS — the native mobile app makes cross-origin requests. Wide-open origins
     # are acceptable because data endpoints now require a JWT bearer token (the app

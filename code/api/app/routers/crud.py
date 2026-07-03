@@ -34,7 +34,7 @@ def make_router(entity: Entity) -> APIRouter:
     def list_rows():
         return query(f"SELECT * FROM {table} ORDER BY {order_by}")
 
-    if table not in {"documents", "document_extractions"}:
+    if entity.create:
         @router.post("", status_code=201)
         def create_row(payload: PayloadModel):
             data = payload.model_dump(exclude_unset=True)
