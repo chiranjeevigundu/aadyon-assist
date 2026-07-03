@@ -31,6 +31,12 @@ def agency_page():
     return FileResponse(get_settings().dashboard_dir / "agency.html")
 
 
+@router.get("/assistant")
+def assistant_page():
+    """Personal Assistant (Jarvis) chat interface."""
+    return FileResponse(get_settings().dashboard_dir / "assistant.html")
+
+
 @router.get("/accounts")
 def accounts_page():
     """Email accounts — register and (later) connect your mailboxes."""
