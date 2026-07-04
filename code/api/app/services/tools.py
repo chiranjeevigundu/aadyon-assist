@@ -285,6 +285,14 @@ def _create(table: str, args: dict) -> dict:
     missing = [c for c in _REQUIRED.get(table, []) if c not in data]
     if missing:
         return {"error": f"missing required fields: {missing}"}
+    # A goal set via update_profile already auto-creates a tracking milestone; the
+    # model sometimes ALSO calls create_milestone for it. Dedupe open milestones by
+    # title so the same goal can't land on the Goal card twice.
+    if table == "milestones" and data.get("title"):
+        dup = query("SELECT id FROM milestones WHERE title = %s AND NOT achieved",
+                    (data["title"],))
+        if dup:
+            return {"ok": True, "action": "milestone already tracked", "row": {"id": dup[0]["id"]}}
     data["user_id"] = current_user_id()
     fields = ", ".join(data.keys())
     ph = ", ".join(["%s"] * len(data))
