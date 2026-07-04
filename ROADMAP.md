@@ -76,38 +76,38 @@ and remembering everything. Must stay scalable + cloud-migratable. Foundations l
 `fix/storage-and-connection-resilience` (storage actually persists now; DB connections
 recycle) — these build on it. Priority order is a proposal; owner to confirm.
 
-- [ ] **Auto-apply high-confidence extractions (close the loop).** Today every document/
+- [x] **Auto-apply high-confidence extractions (close the loop).** Today every document/
   email extraction waits in a review queue for a manual approve. Add a per-item confidence
   + a rule: high-confidence, unambiguous items (a clear recurring subscription, a dated bill)
   apply straight to `bills`/`subscriptions`/`deadlines` and just *notify*; ambiguous ones
   still queue. Reuse `document_store.approve_extraction` as the apply path. Accept: uploading
   a statement updates the dashboard with no manual step for clear items; borderline items still
   reviewable.
-- [ ] **Recurring-statement dedup + lifecycle.** A monthly statement re-lists the same Netflix
+- [x] **Recurring-statement dedup + lifecycle.** A monthly statement re-lists the same Netflix
   sub — don't create duplicates; update the existing row (amount changed → update; not seen for
   N cycles or an email says "cancelled" → mark ended). Natural-key dedup like
   `jobs/import_entities.py` already does. Extend `subscriptions` with a `status`
   (active/ended) + `last_seen`. Accept: re-uploading the same statement is idempotent; "my
   Spotify ended" via chat or email flips status, and the dashboard reflects it.
-- [ ] **Email → tracked items (turn the read-only pipeline on).** `email_ingest` already
+- [x] **Email → tracked items (turn the read-only pipeline on).** `email_ingest` already
   extracts to a review queue; wire it to the same auto-apply/dedup path so "your subscription
   renewed / a new charge / a bill is due" emails become tracked items. Keep read-only + the
   propose_action boundary for anything external. Accept: a synced email about a new subscription
   shows up tracked (or queued) without manual entry.
-- [ ] **Assistant delegation that's visible + remembered.** `delegate` creates agent tasks but
+- [x] **Assistant delegation that's visible + remembered.** `delegate` creates agent tasks but
   results aren't surfaced back. Let the assistant delegate (e.g. "Finance: find my 3 priciest
   subscriptions"), then read the agent's result and report it; persist a durable timeline of
   what was tracked/decided so it's queryable later ("what changed on my card last month?").
   Reuse `agents`/`tasks`/`agent_runs`. Accept: a delegated task runs, its result comes back in
   chat, and the history is retrievable.
-- [ ] **Assistant long-term memory.** A per-user memory store (the `memory_chunks` table +
+- [x] **Assistant long-term memory.** A per-user memory store (the `memory_chunks` table +
   pgvector already exist) the assistant writes salient facts to and retrieves on later turns, so
   it behaves like a secretary who remembers. Accept: tell it something one session, it recalls it
   the next.
 - [ ] **Dashboard freshness signals.** Surface "updated just now / N new items to review" on the
   dashboards + a lightweight change feed, so the owner sees when tracking happened. Accept: after
   an upload/email sync, the dashboard shows what changed without a manual refresh hunt.
-- [ ] **Cloud migration guide + readiness.** Document + verify the path to a managed cloud DB
+- [x] **Cloud migration guide + readiness.** See [docs/CLOUD.md](docs/CLOUD.md). Document + verify the path to a managed cloud DB
   (RDS/Cloud SQL) and object storage (S3/GCS): `STORAGE_BACKEND=s3`, connection pooling already
   hardened, secrets via the platform's secret manager, migrations via the `migrate` job. Accept:
   a documented, tested deploy to one cloud target.
