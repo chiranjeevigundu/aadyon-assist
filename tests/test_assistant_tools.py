@@ -130,3 +130,44 @@ def test_dispatch_returns_tool_exceptions_as_errors(monkeypatch):
     patch_query(monkeypatch, "app.services.tools", q)
     out = tools.dispatch("update_profile", {"birthdate": "not-a-date"}, {})
     assert "error" in out and "invalid input" in out["error"]
+
+
+def test_setting_a_goal_mirrors_it_into_a_milestone(monkeypatch):
+    # goal_title/goal_target_date are display labels; the Goal score only reads
+    # milestones — a stated goal must create one (at 0%) to show up at all.
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        s = sql.strip()
+        if s.startswith("SELECT id FROM profile"):
+            return [{"id": "p1"}]
+        if s.startswith("SELECT id FROM milestones"):
+            return []                      # not tracked yet
+        return []
+    fake = patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch("update_profile",
+                         {"goal_title": "become debt free by age 30",
+                          "goal_target_date": "2029-12-15"}, {})
+    assert out["ok"] is True and "milestone" in out["action"]
+    ins = next(c for c in fake.calls if "INSERT INTO milestones" in c[0])
+    assert ins[1][1] == "become debt free by age 30" and ins[1][2] == "2029-12-15"
+
+
+def test_goal_milestone_not_duplicated(monkeypatch):
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        s = sql.strip()
+        if s.startswith("SELECT id FROM profile"):
+            return [{"id": "p1"}]
+        if s.startswith("SELECT id FROM milestones"):
+            return [{"id": "m1"}]          # goal already tracked
+        return []
+    fake = patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch("update_profile",
+                         {"goal_title": "become debt free by age 30",
+                          "goal_target_date": "2030-01-01"}, {})
+    assert out["ok"] is True and "milestone" not in out["action"]
+    assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
+    upd = next(c for c in fake.calls if "UPDATE milestones SET milestone_date" in c[0])
+    assert upd[1] == ("2030-01-01", "m1")  # target date refresh still lands

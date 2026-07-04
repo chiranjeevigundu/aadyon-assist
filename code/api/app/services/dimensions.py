@@ -247,12 +247,14 @@ def career_dimension(p: dict) -> dict:
 
 # --------------------------------------------------------------------------- goals
 def goal_dimension(p: dict, life: dict) -> dict:
+    # id included so the assistant's update_milestone can target rows it sees
+    # in get_snapshot (without it the model has no way to reference a milestone).
     goals = query(
-        "SELECT title, category, milestone_date, progress_pct, notes "
+        "SELECT id, title, category, milestone_date, progress_pct, notes "
         "FROM milestones WHERE achieved = false ORDER BY milestone_date ASC"
     )
     achieved = query(
-        "SELECT title, category, milestone_date, notes "
+        "SELECT id, title, category, milestone_date, notes "
         "FROM milestones WHERE achieved = true ORDER BY milestone_date ASC"
     )
     progresses = [int(g["progress_pct"]) for g in goals if g.get("progress_pct") is not None]
