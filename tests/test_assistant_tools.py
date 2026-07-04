@@ -171,3 +171,19 @@ def test_goal_milestone_not_duplicated(monkeypatch):
     assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
     upd = next(c for c in fake.calls if "UPDATE milestones SET milestone_date" in c[0])
     assert upd[1] == ("2030-01-01", "m1")  # target date refresh still lands
+
+
+def test_create_milestone_dedupes_open_title(monkeypatch):
+    # A goal auto-mirrored by update_profile shouldn't be duplicated when the model
+    # also calls create_milestone for it — dedupe open milestones by title.
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        if "SELECT id FROM milestones" in sql:
+            return [{"id": "m-existing"}]
+        return [{"id": "m-new"}]
+    fake = patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch("create_milestone",
+                         {"title": "Become debt free by age 30", "category": "goal"}, {})
+    assert out["ok"] is True and out["row"]["id"] == "m-existing"
+    assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
