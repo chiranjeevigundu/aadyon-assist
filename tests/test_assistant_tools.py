@@ -90,3 +90,43 @@ def test_update_profile_upserts(monkeypatch):
 def test_non_writable_table_rejected():
     set_current_user("u1")
     assert "error" in tools.dispatch("delete_agents", {"id": "x"}, {})
+
+
+def test_update_profile_drops_empty_strings(monkeypatch):
+    # The model sends "" for fields it has no value for; "" into a date/numeric
+    # column is a DB error (the bug behind the visa-update 503) — must be skipped.
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        if sql.strip().startswith("SELECT id FROM profile"):
+            return [{"id": "p1"}]
+        return []
+    fake = patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch(
+        "update_profile",
+        {"visa_type": "F-1", "visa_status": "student", "birthdate": "", "preferred_name": ""},
+        {},
+    )
+    assert out["ok"] is True
+    upd = next(c for c in fake.calls if c[0].strip().startswith("UPDATE profile"))
+    assert "visa_type" in upd[0] and "visa_status" in upd[0]
+    assert "birthdate" not in upd[0] and "preferred_name" not in upd[0]
+
+
+def test_update_profile_all_empty_is_a_clean_error(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])
+    out = tools.dispatch("update_profile", {"birthdate": "", "headline": ""}, {})
+    assert "error" in out
+
+
+def test_dispatch_returns_tool_exceptions_as_errors(monkeypatch):
+    # A handler blowing up (e.g. psycopg2 rejecting a malformed date) must come
+    # back as an {"error": ...} tool result, not escape and kill the SSE stream.
+    set_current_user("u1")
+
+    def q(sql, p=(), c=False):
+        raise ValueError("invalid input syntax for type date")
+    patch_query(monkeypatch, "app.services.tools", q)
+    out = tools.dispatch("update_profile", {"birthdate": "not-a-date"}, {})
+    assert "error" in out and "invalid input" in out["error"]

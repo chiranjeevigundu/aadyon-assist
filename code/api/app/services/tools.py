@@ -230,7 +230,19 @@ def schemas_for(agent_type: str) -> list:
 
 # --------------------------------------------------------------------------- dispatch
 def dispatch(name: str, args: dict, ctx: dict) -> dict:
-    """Execute a tool. ctx carries task_id/agent_id/team_id (org) or is minimal (assistant)."""
+    """Execute a tool. ctx carries task_id/agent_id/team_id (org) or is minimal (assistant).
+
+    Never raises: a failing tool (bad date string, constraint violation, …) must come
+    back as an {"error": ...} tool result the model can react to — an escaped exception
+    would 500 the sync chat and tear down the SSE stream mid-response.
+    """
+    try:
+        return _dispatch(name, args, ctx)
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
+def _dispatch(name: str, args: dict, ctx: dict) -> dict:
     if name == "get_snapshot":
         return digital_me()
     if name == "get_calendar":
@@ -261,9 +273,15 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
 
 
 # --------------------------------------------------------------------------- write handlers
+def _clean(args: dict, cols) -> dict:
+    """Keep only known columns with real values. The model sends "" for fields it
+    has no value for; typed columns (date/numeric) reject empty strings, so treat
+    "" the same as absent."""
+    return {k: v for k, v in args.items() if k in cols and v is not None and v != ""}
+
+
 def _create(table: str, args: dict) -> dict:
-    cols = _COLS[table]
-    data = {k: v for k, v in args.items() if k in cols and v is not None}
+    data = _clean(args, _COLS[table])
     missing = [c for c in _REQUIRED.get(table, []) if c not in data]
     if missing:
         return {"error": f"missing required fields: {missing}"}
@@ -281,8 +299,7 @@ def _update(table: str, args: dict) -> dict:
     row_id = args.get("id")
     if not row_id:
         return {"error": "id is required"}
-    cols = _COLS[table]
-    data = {k: v for k, v in args.items() if k in cols and v is not None}
+    data = _clean(args, _COLS[table])
     if not data:
         return {"error": "no fields to update"}
     sets = ", ".join(f"{k} = %s" for k in data)
@@ -304,8 +321,7 @@ def _delete(table: str, args: dict) -> dict:
 
 
 def _update_profile(args: dict) -> dict:
-    cols = _COLS["profile"]
-    data = {k: v for k, v in args.items() if k in cols and v is not None}
+    data = _clean(args, _COLS["profile"])
     if not data:
         return {"error": "no profile fields provided"}
     existing = query("SELECT id FROM profile LIMIT 1")  # RLS-scoped to this user
