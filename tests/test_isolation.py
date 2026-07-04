@@ -27,6 +27,7 @@ class FakeConn:
         self.calls = calls
         self.committed = False
         self.rolledback = False
+        self.closed = 0  # psycopg2 connections expose .closed (0 = open)
 
     def cursor(self, **kwargs):
         return FakeCursor(self.calls)
@@ -45,7 +46,7 @@ class FakePool:
     def getconn(self):
         return self.conn
 
-    def putconn(self, conn):
+    def putconn(self, conn, close=False):  # real pool's putconn accepts close=
         pass
 
 
