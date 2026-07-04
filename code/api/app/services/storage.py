@@ -11,9 +11,21 @@ class StorageError(Exception):
     pass
 
 
-def _ci_mode() -> bool:
-    """CI runs with the literal key 'ci' — skip real I/O entirely."""
-    return get_settings().s3_access_key == "ci"
+def _backend() -> str:
+    """Which storage backend is active: 'local' (disk), 's3', or 'mock'.
+
+    Explicit via STORAGE_BACKEND (see config). For backward compatibility with the
+    unit tests that set s3 creds and monkeypatch get_s3_client without a backend,
+    a real-looking s3 credential pair still infers 's3'; the literal 'ci' sentinel
+    (used only as a dummy in CI secrets) does NOT — it falls through to 'local' so
+    a deployment carrying placeholder creds persists uploads instead of mocking."""
+    s = get_settings()
+    b = getattr(s, "storage_backend", "") if isinstance(getattr(s, "storage_backend", ""), str) else ""
+    if b in ("local", "s3", "mock"):
+        return b
+    if s.s3_access_key and s.s3_secret_key and s.s3_access_key != "ci":
+        return "s3"
+    return "local"
 
 
 def get_s3_client():
@@ -40,19 +52,24 @@ def _get_local_path(object_key: str):
     return path
 
 
-def upload_fileobj(file_obj, object_key: str, content_type: str | None = None) -> str:
-    """Upload a file-like object to S3, or local disk if S3 is not configured."""
-    if _ci_mode():
-        return object_key
-
+def _require_s3():
     s3 = get_s3_client()
     if not s3:
+        raise StorageError("STORAGE_BACKEND=s3 but S3 credentials are not configured")
+    return s3
+
+
+def upload_fileobj(file_obj, object_key: str, content_type: str | None = None) -> str:
+    """Persist a file-like object to the active backend (local disk / S3 / mock)."""
+    backend = _backend()
+    if backend == "mock":
+        return object_key
+    if backend == "local":
         with open(_get_local_path(object_key), "wb") as f:
             shutil.copyfileobj(file_obj, f)
         return object_key
-
     try:
-        s3.upload_fileobj(
+        _require_s3().upload_fileobj(
             file_obj,
             get_settings().s3_bucket,
             object_key,
@@ -64,38 +81,34 @@ def upload_fileobj(file_obj, object_key: str, content_type: str | None = None) -
 
 
 def upload_file(file_path: str, object_name: str) -> str:
-    """Upload a local file to S3, or local disk if S3 is not configured."""
-    if _ci_mode():
+    """Persist a local file to the active backend (local disk / S3 / mock)."""
+    backend = _backend()
+    if backend == "mock":
         return object_name
-
-    s3 = get_s3_client()
-    if not s3:
+    if backend == "local":
         shutil.copy2(file_path, _get_local_path(object_name))
         return object_name
-
     try:
-        s3.upload_file(file_path, get_settings().s3_bucket, object_name)
+        _require_s3().upload_file(file_path, get_settings().s3_bucket, object_name)
     except ClientError as e:
         raise StorageError(f"Upload failed: {e}") from e
     return object_name
 
 
 def download_fileobj(object_key: str, file_obj):
-    """Download an object from S3 (or local disk) into a file-like object."""
-    if _ci_mode():
+    """Read an object from the active backend into a file-like object."""
+    backend = _backend()
+    if backend == "mock":
         file_obj.write(b"dummy content")
         return
-
-    s3 = get_s3_client()
-    if not s3:
+    if backend == "local":
         local_path = _get_local_path(object_key)
         if not local_path.exists():
             raise StorageError("File not found on local disk")
         with open(local_path, "rb") as f:
             shutil.copyfileobj(f, file_obj)
         return
-
     try:
-        s3.download_fileobj(get_settings().s3_bucket, object_key, file_obj)
+        _require_s3().download_fileobj(get_settings().s3_bucket, object_key, file_obj)
     except ClientError as e:
         raise StorageError(f"Download failed: {e}") from e

@@ -65,9 +65,27 @@ def pool() -> ThreadedConnectionPool:
     return _pool
 
 
+def _live_conn():
+    """Check out a connection the pool believes is open. The pool can hold
+    connections the server has since dropped (idle-timeout, restart, network
+    blip) — common with managed cloud databases that reap idle connections.
+    Skip any that are already client-side closed, discarding them from the pool.
+    A server-side death that psycopg2 hasn't noticed yet still slips through
+    here; the retry in query()/query_unscoped() covers that case."""
+    p = pool()
+    for _ in range(4):
+        conn = p.getconn()
+        if conn.closed:
+            p.putconn(conn, close=True)  # drop the dead one, don't reuse it
+            continue
+        return conn
+    raise psycopg2.OperationalError("no live database connection available from pool")
+
+
 @contextmanager
 def cursor(commit: bool = False, scoped: bool = True):
-    conn = pool().getconn()
+    conn = _live_conn()
+    broken = False
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if scoped:
@@ -87,29 +105,48 @@ def cursor(commit: bool = False, scoped: bool = True):
             else:
                 conn.rollback()
     except Exception:
-        conn.rollback()
+        # A failed connection can't be cleaned up or safely reused — flag it so
+        # finally discards it instead of returning a poisoned conn to the pool.
+        # Guard the rollback: on a dead connection it raises and would mask the
+        # real error.
+        broken = True
+        try:
+            conn.rollback()
+        except psycopg2.Error:
+            pass
         raise
     finally:
-        pool().putconn(conn)
+        pool().putconn(conn, close=broken or bool(conn.closed))
+
+
+# Connection-level failures worth one transparent retry with a fresh connection:
+# a stale pooled conn often only reveals it's dead on the first execute().
+_CONN_ERRORS = (psycopg2.OperationalError, psycopg2.InterfaceError)
 
 
 def query(sql: str, params: tuple = (), commit: bool = False):
     """User-scoped query — RLS restricts every row to the current user."""
-    with cursor(commit=commit, scoped=True) as cur:
-        cur.execute(sql, params)
-        if cur.description:
-            return cur.fetchall()
-        return []
+    for attempt in (1, 2):
+        try:
+            with cursor(commit=commit, scoped=True) as cur:
+                cur.execute(sql, params)
+                return cur.fetchall() if cur.description else []
+        except _CONN_ERRORS:
+            if attempt == 2:
+                raise
 
 
 def query_unscoped(sql: str, params: tuple = (), commit: bool = False):
     """Query WITHOUT setting the user GUC. Only for non-RLS tables: `users`
     (auth) and global config like `model_routes`. Never use for per-user data."""
-    with cursor(commit=commit, scoped=False) as cur:
-        cur.execute(sql, params)
-        if cur.description:
-            return cur.fetchall()
-        return []
+    for attempt in (1, 2):
+        try:
+            with cursor(commit=commit, scoped=False) as cur:
+                cur.execute(sql, params)
+                return cur.fetchall() if cur.description else []
+        except _CONN_ERRORS:
+            if attempt == 2:
+                raise
 
 
 def active_user_ids() -> list[str]:

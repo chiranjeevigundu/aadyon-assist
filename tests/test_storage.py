@@ -6,6 +6,7 @@ def test_upload_fileobj(monkeypatch):
 
     # Mock settings
     mock_settings = MagicMock()
+    mock_settings.storage_backend = "s3"
     mock_settings.s3_access_key = "test_key"
     mock_settings.s3_secret_key = "test_secret"
     mock_settings.s3_bucket = "test-bucket"
@@ -29,6 +30,7 @@ def test_download_fileobj(monkeypatch):
 
     # Mock settings
     mock_settings = MagicMock()
+    mock_settings.storage_backend = "s3"
     mock_settings.s3_access_key = "test_key"
     mock_settings.s3_secret_key = "test_secret"
     mock_settings.s3_bucket = "test-bucket"
@@ -51,6 +53,7 @@ def test_download_fileobj(monkeypatch):
 def _local_settings(tmp_path):
     """Settings with no S3 keys -> the local-disk fallback path."""
     s = MagicMock()
+    s.storage_backend = "local"
     s.s3_access_key = ""
     s.s3_secret_key = ""
     s.artifacts_dir = tmp_path
@@ -83,3 +86,38 @@ def test_local_fallback_rejects_traversal(monkeypatch, tmp_path):
 
     with pytest.raises(storage.StorageError):
         storage.download_fileobj("uid/missing.txt", io.BytesIO())
+
+
+def _backend_settings(backend, access_key="ci", secret_key="ci", tmp_path=None):
+    s = MagicMock()
+    s.storage_backend = backend
+    s.s3_access_key = access_key
+    s.s3_secret_key = secret_key
+    s.artifacts_dir = tmp_path
+    return s
+
+
+def test_mock_backend_is_noop(monkeypatch):
+    # Explicit mock backend: no real I/O (for CI/tests that don't touch disk or S3).
+    from app.services import storage
+    monkeypatch.setattr("app.services.storage.get_settings",
+                        lambda: _backend_settings("mock"))
+    assert storage.upload_fileobj(io.BytesIO(b"x"), "uid/f.txt") == "uid/f.txt"
+    out = io.BytesIO()
+    storage.download_fileobj("uid/f.txt", out)
+    assert out.getvalue() == b"dummy content"
+
+
+def test_ci_placeholder_creds_persist_locally(monkeypatch, tmp_path):
+    # The bug: dev/prod secrets literally contained "ci", which used to force mock
+    # mode and silently discard uploads. Now the default is local disk, so content
+    # actually round-trips even with the placeholder creds present.
+    from app.services import storage
+    monkeypatch.setattr(
+        "app.services.storage.get_settings",
+        lambda: _backend_settings("local", access_key="ci", secret_key="ci", tmp_path=tmp_path),
+    )
+    storage.upload_fileobj(io.BytesIO(b"real statement bytes"), "uid/stmt.txt")
+    out = io.BytesIO()
+    storage.download_fileobj("uid/stmt.txt", out)
+    assert out.getvalue() == b"real statement bytes"
