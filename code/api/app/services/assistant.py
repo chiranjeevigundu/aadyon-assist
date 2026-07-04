@@ -28,6 +28,12 @@ def _system_prompt() -> str:
     user_info = rows[0] if rows else {}
     name = user_info.get("display_name") or user_info.get("email") or "the user"
 
+    memories = tools.recent_memories()
+    memory_block = (
+        " Things you remember about them (from past sessions): "
+        + " | ".join(memories) + "."
+    ) if memories else ""
+
     return (
         f"You are Aadyon Assist, the personal life-ops assistant for {name}. Today is {date.today()}. "
         f"You manage {name}'s Digital Me: deadlines, debts, bills, subscriptions, milestones, "
@@ -47,7 +53,11 @@ def _system_prompt() -> str:
         "update the matching milestone's progress_pct; if a score looks low, explain what would move it. "
         f"Proactively gather details from interactions, update {name}'s Digital Me profile based on them, "
         "and ask clarifying questions to fill in missing information, just like a human personal assistant. "
+        "You can delegate concrete research/analysis to the agent org with `delegate` (e.g. Finance: "
+        "'find my 3 priciest subscriptions'); the org works it in the background — use `get_tasks` to "
+        "check results and report them back. Use `remember` to save durable facts worth recalling later. "
         "Be concrete, warm, and brief."
+        + memory_block
     )
 
 

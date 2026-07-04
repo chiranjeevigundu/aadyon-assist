@@ -187,3 +187,35 @@ def test_create_milestone_dedupes_open_title(monkeypatch):
                          {"title": "Become debt free by age 30", "category": "goal"}, {})
     assert out["ok"] is True and out["row"]["id"] == "m-existing"
     assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
+
+
+def test_remember_persists_a_fact(monkeypatch):
+    set_current_user("u1")
+    fake = patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])
+    out = tools.dispatch("remember", {"content": "Prefers morning meetings"}, {})
+    assert out["ok"] is True
+    ins = next(c for c in fake.calls if "INSERT INTO memory_chunks" in c[0])
+    assert ins[1][1] == "Prefers morning meetings"
+
+
+def test_remember_empty_is_error(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])
+    assert "error" in tools.dispatch("remember", {"content": "  "}, {})
+
+
+def test_recent_memories_returns_contents(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools",
+                lambda sql, p=(), c=False: [{"content": "a"}, {"content": "b"}])
+    assert tools.recent_memories() == ["a", "b"]
+
+
+def test_get_tasks_lists_delegated_work(monkeypatch):
+    set_current_user("u1")
+    patch_query(monkeypatch, "app.services.tools",
+                lambda sql, p=(), c=False: [{"title": "audit subs", "status": "done",
+                                             "result": "3 found", "error": None,
+                                             "updated_at": "2026-07-04"}])
+    out = tools.dispatch("get_tasks", {}, {})
+    assert out["tasks"][0]["status"] == "done" and out["tasks"][0]["result"] == "3 found"

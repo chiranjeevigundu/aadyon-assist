@@ -13,11 +13,15 @@ _EXTRACT_SYS = (
     "You extract ONE actionable personal life-ops item from an email, if present. "
     "Return STRICT JSON only, no prose. Schema: "
     '{"kind":"deadline|bill|subscription|none","title":string,'
-    '"due_date":<JSON null or "YYYY-MM-DD">,"amount":<JSON null or number>,"summary":string}. '
+    '"due_date":<JSON null or "YYYY-MM-DD">,"amount":<JSON null or number>,'
+    '"cancellation":<true|false>,"confidence":<0.0-1.0>,"summary":string}. '
     "A 'deadline' must be something YOU must personally do by a date (a payment, appointment, "
     "filing, renewal, or expiry) — NOT a log of something that already happened. "
     "'bill' = a specific payment you owe, with an amount. "
     "'subscription' = a recurring charge/renewal, with an amount. "
+    "Set cancellation=true (kind still 'subscription' or 'bill') when the email says a recurring "
+    "subscription/bill has ENDED, been CANCELLED, or won't renew — then amount may be null. "
+    "confidence is your certainty (0.0-1.0) this is a real, correctly-typed item. "
     "Return 'none' for anything that isn't a real personal to-do: marketing, sales, promotions, "
     "newsletters, social, receipts/confirmations for completed actions, shipping/tracking, "
     "OTP/verification, login/security alerts, and AUTOMATED system notifications "
@@ -55,12 +59,19 @@ def normalize(d: dict) -> dict | None:
         except Exception:  # noqa: BLE001
             amt = None
     d["amount"] = amt
+    d["cancellation"] = bool(d.get("cancellation"))
+    try:
+        d["confidence"] = max(0.0, min(1.0, float(d.get("confidence") or 0)))
+    except (TypeError, ValueError):
+        d["confidence"] = 0.0
     # filters
     if kind == "deadline":
         if not d["due_date"] or date.fromisoformat(d["due_date"]) < date.today():
             return None  # a deadline needs a real, non-past date
     elif kind in ("bill", "subscription"):
-        if amt is None or amt <= 0:
+        # A cancellation needs no amount (the sub/bill is ending); a new/recurring
+        # charge still requires a positive amount.
+        if not d["cancellation"] and (amt is None or amt <= 0):
             return None
     else:
         return None
