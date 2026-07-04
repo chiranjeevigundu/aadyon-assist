@@ -107,6 +107,30 @@ _SCHEMAS: dict = {
             },
         },
     },
+    "get_tasks": {
+        "type": "function",
+        "function": {
+            "name": "get_tasks",
+            "description": "List the user's recently delegated tasks with their status and result, "
+                           "so you can report back what the agent org did. Call this after delegating "
+                           "or when the user asks what happened with a delegated task.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    "remember": {
+        "type": "function",
+        "function": {
+            "name": "remember",
+            "description": "Save a durable fact about the user for future sessions (a preference, "
+                           "a recurring detail, a decision). Use for things worth recalling later — "
+                           "not transient chit-chat. These are surfaced back to you automatically.",
+            "parameters": {
+                "type": "object",
+                "properties": {"content": {"type": "string", "description": "the fact to remember"}},
+                "required": ["content"],
+            },
+        },
+    },
     "delegate": {
         "type": "function",
         "function": {
@@ -220,7 +244,7 @@ _BY_TYPE = {
     "team_lead": ["get_snapshot", "propose_action"],
     "employee": ["get_snapshot", "propose_action"],
     # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions", "get_recent_documents", "read_document"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions", "get_recent_documents", "read_document", "get_tasks", "remember", "delegate"] + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -257,6 +281,10 @@ def _dispatch(name: str, args: dict, ctx: dict) -> dict:
         return _read_document(args)
     if name == "delegate":
         return _delegate(args, ctx)
+    if name == "get_tasks":
+        return _get_tasks_status(args)
+    if name == "remember":
+        return _remember(args)
     if name == "propose_action":
         return _propose(args, ctx)
     if name == "update_profile":
@@ -370,6 +398,38 @@ def _update_profile(args: dict) -> dict:
     if _track_goal_milestone(data):
         action += " + created a milestone to track the goal (progress starts at 0%)"
     return {"ok": True, "action": action}
+
+
+def _get_tasks_status(args: dict) -> dict:
+    """Recent tasks + their agency-produced status/result, so the assistant can
+    report back what the org actually did. RLS already scopes these to the user;
+    delegated tasks are created by the CEO agent, so don't filter by created_by."""
+    rows = query(
+        "SELECT title, status, result, error, updated_at FROM tasks "
+        "ORDER BY updated_at DESC LIMIT 20"
+    )
+    return {"tasks": rows}
+
+
+def _remember(args: dict) -> dict:
+    """Persist a durable fact for future sessions (surfaced back via the prompt)."""
+    content = (args.get("content") or "").strip()
+    if not content:
+        return {"error": "nothing to remember"}
+    query(
+        "INSERT INTO memory_chunks (user_id, source, content) VALUES (%s, 'assistant', %s)",
+        (current_user_id(), content[:2000]), commit=True,
+    )
+    return {"ok": True, "action": "remembered"}
+
+
+def recent_memories(limit: int = 20) -> list[str]:
+    """The user's saved facts, newest first — injected into the system prompt so
+    the assistant recalls them across sessions."""
+    rows = query(
+        "SELECT content FROM memory_chunks ORDER BY created_at DESC LIMIT %s", (limit,)
+    )
+    return [r["content"] for r in rows]
 
 
 def _get_calendar(args: dict) -> dict:

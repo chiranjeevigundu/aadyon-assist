@@ -26,6 +26,7 @@ def test_missing_conversation_raises(monkeypatch):
 def test_loop_runs_tool_then_final(monkeypatch):
     set_current_user("u1")
     patch_query(monkeypatch, "app.services.assistant", _base_query())
+    patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])  # memory injection
     monkeypatch.setattr(assistant.routing, "resolve",
                         lambda tier: {"provider": "openrouter", "model": "m", "temperature": 0.2})
 
@@ -49,6 +50,7 @@ def test_loop_runs_tool_then_final(monkeypatch):
 def test_proposal_is_surfaced(monkeypatch):
     set_current_user("u1")
     patch_query(monkeypatch, "app.services.assistant", _base_query())
+    patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])  # memory injection
     monkeypatch.setattr(assistant.routing, "resolve",
                         lambda tier: {"provider": "openrouter", "model": "m", "temperature": 0.2})
     turns = iter([
@@ -69,6 +71,7 @@ def test_proposal_is_surfaced(monkeypatch):
 def test_no_tool_provider_single_completion(monkeypatch):
     set_current_user("u1")
     patch_query(monkeypatch, "app.services.assistant", _base_query())
+    patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])  # memory injection
     monkeypatch.setattr(assistant.routing, "resolve",
                         lambda tier: {"provider": "ollama", "model": "llama3.1", "temperature": 0.2})
     monkeypatch.setattr(assistant, "chat",
