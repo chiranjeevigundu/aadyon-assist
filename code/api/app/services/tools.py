@@ -320,6 +320,27 @@ def _delete(table: str, args: dict) -> dict:
     return {"ok": bool(rows), "action": f"deleted {table}" if rows else "not found"}
 
 
+def _track_goal_milestone(data: dict) -> bool:
+    """The Goal dimension scores ONLY milestones (avg progress_pct of open rows);
+    profile.goal_title/goal_target_date are display labels. Mirror a stated goal
+    into a milestone (deduped by open title) so it shows up and can be scored."""
+    title = data.get("goal_title")
+    if not title:
+        return False
+    existing = query("SELECT id FROM milestones WHERE title = %s AND NOT achieved", (title,))
+    if existing:
+        if data.get("goal_target_date"):
+            query("UPDATE milestones SET milestone_date = %s WHERE id = %s",
+                  (data["goal_target_date"], existing[0]["id"]), commit=True)
+        return False
+    query(
+        "INSERT INTO milestones (user_id, title, category, milestone_date, progress_pct) "
+        "VALUES (%s, %s, 'goal', %s, 0)",
+        (current_user_id(), title, data.get("goal_target_date")), commit=True,
+    )
+    return True
+
+
 def _update_profile(args: dict) -> dict:
     data = _clean(args, _COLS["profile"])
     if not data:
@@ -329,14 +350,18 @@ def _update_profile(args: dict) -> dict:
         sets = ", ".join(f"{k} = %s" for k in data)
         query(f"UPDATE profile SET {sets} WHERE id = %s",
               tuple(data.values()) + (existing[0]["id"],), commit=True)
-        return {"ok": True, "action": "updated profile"}
-    # No profile yet — create it (full_name is NOT NULL).
-    data.setdefault("full_name", "Me")
-    data["user_id"] = current_user_id()
-    fields = ", ".join(data.keys())
-    ph = ", ".join(["%s"] * len(data))
-    query(f"INSERT INTO profile ({fields}) VALUES ({ph})", tuple(data.values()), commit=True)
-    return {"ok": True, "action": "created profile"}
+        action = "updated profile"
+    else:
+        # No profile yet — create it (full_name is NOT NULL).
+        data.setdefault("full_name", "Me")
+        data["user_id"] = current_user_id()
+        fields = ", ".join(data.keys())
+        ph = ", ".join(["%s"] * len(data))
+        query(f"INSERT INTO profile ({fields}) VALUES ({ph})", tuple(data.values()), commit=True)
+        action = "created profile"
+    if _track_goal_milestone(data):
+        action += " + created a milestone to track the goal (progress starts at 0%)"
+    return {"ok": True, "action": action}
 
 
 def _get_calendar(args: dict) -> dict:
