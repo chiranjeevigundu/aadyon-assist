@@ -82,5 +82,9 @@ def chat_stream(payload: dict):
             yield _sse({"error": "conversation not found"})
         except LLMError as e:
             yield _sse({"error": str(e)})
+        # Last resort: an escaped exception here resets the connection mid-stream
+        # (the client sees a network error, not a message) — end with an SSE error.
+        except Exception as e:
+            yield _sse({"error": f"{type(e).__name__}: {e}"})
 
     return StreamingResponse(gen(), media_type="text/event-stream")
