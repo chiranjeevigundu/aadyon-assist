@@ -42,20 +42,16 @@ def test_process_msg_queues_item(monkeypatch):
 
 
 def test_approve_deadline(monkeypatch):
+    # Approval now delegates to the shared document_store apply path, so patch both.
     row = {"id": "x", "kind": "deadline", "subject": "Renew", "sender": "dmv@x",
            "payload": {"title": "Renew plates", "due_date": "2030-01-01"}}
-    seen = []
-
-    def q(sql, p=(), c=False):
-        seen.append(sql)
-        if "FROM email_extractions" in sql and sql.strip().startswith("SELECT"):
-            return [row]
-        return []
-
-    patch_query(monkeypatch, "app.services.email_store", q)
+    patch_query(monkeypatch, "app.services.email_store",
+                lambda sql, p=(), c=False: [row] if "email_extractions" in sql and "SELECT" in sql else [])
+    doc = patch_query(monkeypatch, "app.services.document_store",
+                      lambda sql, p=(), c=False: [{"id": "n1"}] if "INSERT" in sql else [])
     out = email_store.approve_extraction("x")
-    assert out == {"status": "approved", "applied_as": "deadline"}
-    assert any("INSERT INTO deadlines" in s for s in seen)
+    assert out["status"] == "approved" and out["applied_as"] == "deadline"
+    assert any("INSERT INTO deadlines" in s for s, _, _ in doc.calls)
 
 
 def test_approve_bill(monkeypatch):
@@ -63,7 +59,22 @@ def test_approve_bill(monkeypatch):
            "payload": {"title": "Internet", "amount": 60}}
     patch_query(monkeypatch, "app.services.email_store",
                 lambda sql, p=(), c=False: [row] if "SELECT" in sql and "email_extractions" in sql else [])
+    patch_query(monkeypatch, "app.services.document_store",
+                lambda sql, p=(), c=False: [{"id": "n1"}] if "INSERT" in sql else [])
     assert email_store.approve_extraction("x")["applied_as"] == "bill"
+
+
+def test_approve_cancellation_ends_subscription(monkeypatch):
+    # An email cancellation flips the matching active subscription to inactive.
+    row = {"id": "x", "kind": "subscription", "subject": "Cancelled", "sender": "netflix",
+           "payload": {"title": "Netflix", "cancellation": True}}
+    patch_query(monkeypatch, "app.services.email_store",
+                lambda sql, p=(), c=False: [row] if "SELECT" in sql and "email_extractions" in sql else [])
+    doc = patch_query(monkeypatch, "app.services.document_store",
+                      lambda sql, p=(), c=False: [{"id": "s1"}] if "UPDATE" in sql else [])
+    out = email_store.approve_extraction("x")
+    assert out["status"] == "approved"
+    assert any("SET active=false" in s for s, _, _ in doc.calls)
 
 
 def test_approve_deadline_without_date_is_rejected(monkeypatch):
@@ -71,6 +82,7 @@ def test_approve_deadline_without_date_is_rejected(monkeypatch):
            "payload": {"title": "no date"}}
     patch_query(monkeypatch, "app.services.email_store",
                 lambda sql, p=(), c=False: [row] if "SELECT" in sql and "email_extractions" in sql else [])
+    patch_query(monkeypatch, "app.services.document_store", lambda sql, p=(), c=False: [])
     assert "error" in email_store.approve_extraction("x")
 
 
