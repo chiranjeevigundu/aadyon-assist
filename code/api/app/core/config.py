@@ -29,6 +29,12 @@ class Settings:
         self.alert_days = int(os.getenv("ALERT_DAYS", "3"))
         self.tz = os.getenv("TZ", "UTC")
 
+        # --- Document/file storage backend ---
+        # "local" (default): persist under artifacts_dir/uploads — works on a single
+        # host (the Mac Mini). "s3": S3-compatible object storage (set the creds below)
+        # — the cloud-scale / multi-instance option. "mock": no real I/O, for tests/CI.
+        # Explicit so a real deployment never silently discards uploads.
+        self.storage_backend = os.getenv("STORAGE_BACKEND", "local").strip().lower()
         # --- Cloud Storage (S3-compatible) ---
         self.s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "").strip()
         self.s3_bucket = os.getenv("S3_BUCKET_NAME", "aadyon-assist").strip()
