@@ -11,11 +11,24 @@ from datetime import date
 
 from app.core.config import get_settings
 from app.db.session import current_user_id, query, query_unscoped
-from app.services import routing, tools
+from app.services import routing, tools, usage
 from app.services.llm import chat
 
 _ASSISTANT_TYPE = "assistant"
 _CONTENT_CAP = 8000
+_OVER_BUDGET_REPLY = (
+    "You've reached your monthly usage limit for the assistant. It resets at the start "
+    "of next month. (Ask the owner if you need a higher limit.)"
+)
+
+
+def _tokens(resp) -> int:
+    """Best-effort token count from a chat() response for usage accounting."""
+    try:
+        u = resp.get("usage") or {}
+        return int(u.get("total_tokens") or 0)
+    except (AttributeError, TypeError, ValueError):
+        return 0
 
 
 class ConversationNotFound(RuntimeError):
@@ -118,6 +131,11 @@ def run(conversation_id, user_text: str) -> dict:
     _require_conversation(conversation_id)
     _save(conversation_id, "user", user_text)
 
+    uid = current_user_id()
+    if not usage.check(uid)["allowed"]:
+        _save(conversation_id, "assistant", _OVER_BUDGET_REPLY)
+        return {"reply": _OVER_BUDGET_REPLY, "proposals": [], "actions": []}
+
     route = routing.resolve("reasoning")
     provider, model = route["provider"], route["model"]
     tool_schemas = tools.schemas_for(_ASSISTANT_TYPE) if provider == "openrouter" else None
@@ -125,17 +143,19 @@ def run(conversation_id, user_text: str) -> dict:
     messages = [{"role": "system", "content": _system_prompt()}] + _load_history(conversation_id)
     proposals: list[dict] = []
     actions: list[str] = []
-    ctx = {"user_id": current_user_id()}
+    ctx = {"user_id": uid}
 
     # No tool-calling provider (e.g. Ollama): single completion, no writes.
     if not tool_schemas:
         resp = chat(provider, model, messages, None, route["temperature"])
+        usage.record(uid, _tokens(resp))
         reply = resp["message"].get("content", "") or "(no reply)"
         _save(conversation_id, "assistant", reply)
         return {"reply": reply, "proposals": proposals, "actions": actions}
 
     for _step in range(get_settings().agent_max_steps):
         resp = chat(provider, model, messages, tool_schemas, route["temperature"])
+        usage.record(uid, _tokens(resp))
         msg = resp["message"]
         tool_calls = msg.get("tool_calls") or []
 
@@ -172,6 +192,13 @@ def run_stream(conversation_id, user_text: str):
     _require_conversation(conversation_id)
     _save(conversation_id, "user", user_text)
 
+    uid = current_user_id()
+    if not usage.check(uid)["allowed"]:
+        _save(conversation_id, "assistant", _OVER_BUDGET_REPLY)
+        yield {"delta": _OVER_BUDGET_REPLY}
+        yield {"done": True, "conversation_id": conversation_id, "proposals": [], "actions": []}
+        return
+
     route = routing.resolve("reasoning")
     provider, model = route["provider"], route["model"]
     tool_schemas = tools.schemas_for(_ASSISTANT_TYPE) if provider == "openrouter" else None
@@ -179,7 +206,7 @@ def run_stream(conversation_id, user_text: str):
     messages = [{"role": "system", "content": _system_prompt()}] + _load_history(conversation_id)
     proposals: list[dict] = []
     actions: list[str] = []
-    ctx = {"user_id": current_user_id()}
+    ctx = {"user_id": uid}
 
     if not tool_schemas:
         resp = chat(provider, model, messages, None, route["temperature"], stream=True)
@@ -189,6 +216,9 @@ def run_stream(conversation_id, user_text: str):
             if getattr(delta, "content", None):
                 content_accum += delta.content
                 yield {"delta": delta.content}
+        # Streaming responses rarely carry a usage total; estimate from output size
+        # (~4 chars/token) so monthly caps still accumulate for streamed chats.
+        usage.record(uid, max(1, len(content_accum) // 4))
         reply = content_accum or "(no reply)"
         _save(conversation_id, "assistant", reply)
         yield {"done": True, "conversation_id": conversation_id, "proposals": proposals, "actions": actions}
@@ -196,16 +226,16 @@ def run_stream(conversation_id, user_text: str):
 
     for _step in range(get_settings().agent_max_steps):
         resp = chat(provider, model, messages, tool_schemas, route["temperature"], stream=True)
-        
+
         tool_calls_dict = {}
         content_accum = ""
-        
+
         for chunk in resp:
             delta = chunk.choices[0].delta
             if getattr(delta, "content", None):
                 content_accum += delta.content
                 yield {"delta": delta.content}
-                
+
             if getattr(delta, "tool_calls", None):
                 for tc in delta.tool_calls:
                     idx = tc.index
@@ -218,6 +248,7 @@ def run_stream(conversation_id, user_text: str):
                     if tc.function.arguments:
                         tool_calls_dict[idx]["function"]["arguments"] += tc.function.arguments
 
+        usage.record(uid, max(1, len(content_accum) // 4))
         tool_calls = list(tool_calls_dict.values()) if tool_calls_dict else []
 
         if not tool_calls:

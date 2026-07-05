@@ -55,6 +55,7 @@ bootstrap-dev:
     [ -f secrets/jwt_secret.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
     [ -f secrets/s3_access_key.txt ] || printf 'unused' > secrets/s3_access_key.txt
     [ -f secrets/s3_secret_key.txt ] || printf 'unused' > secrets/s3_secret_key.txt
+    [ -f secrets/resend_api_key.txt ] || printf '' > secrets/resend_api_key.txt
     echo "dev environment bootstrapped — fill in OPENROUTER_API_KEY etc. in .env, then: just up-dev"
 
 # Same as bootstrap-dev but from the prod env template — for standing up a
@@ -69,6 +70,7 @@ bootstrap-prod:
     [ -f secrets/jwt_secret.txt ] || python3 -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
     [ -f secrets/s3_access_key.txt ] || printf 'unused' > secrets/s3_access_key.txt
     [ -f secrets/s3_secret_key.txt ] || printf 'unused' > secrets/s3_secret_key.txt
+    [ -f secrets/resend_api_key.txt ] || printf '' > secrets/resend_api_key.txt
     echo "prod environment bootstrapped — fill in real secrets in .env + secrets/, then: just up-prod"
 
 # Rebuild images without starting

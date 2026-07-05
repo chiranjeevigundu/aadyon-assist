@@ -30,7 +30,10 @@ def patch_query(monkeypatch, module_path, handler):
             return handler(sql, params, commit)
 
     _q.calls = calls
-    monkeypatch.setattr(mod, "query", _q)
+    # A module may import only one of the two helpers (e.g. usage uses just
+    # query_unscoped) — patch whichever it actually has.
+    if hasattr(mod, "query"):
+        monkeypatch.setattr(mod, "query", _q)
     if hasattr(mod, "query_unscoped"):
         monkeypatch.setattr(mod, "query_unscoped", _q)
     return _q
