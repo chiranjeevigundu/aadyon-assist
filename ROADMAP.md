@@ -112,6 +112,36 @@ recycle) — these build on it. Priority order is a proposal; owner to confirm.
   hardened, secrets via the platform's secret manager, migrations via the `migrate` job. Accept:
   a documented, tested deploy to one cloud target.
 
+## Family & friends multi-user (a handful of trusted people)
+
+Goal (owner, 2026-07-05): open the app to a few trusted people, not the public App Store.
+The data layer is already multi-tenant (JWT + enforced RLS + per-user org). This hardens
+the *account* layer so it's safe for others, without the full public-product lift (no
+billing, no App Store legal). Hosting decided later; build code-side now. Email via a
+transactional API (`services/mailer.py`, Resend-style, secret-file key; logs to stdout when
+no key is set so dev/CI never send).
+
+- [x] **Invite-only signup.** New `invite_codes` table (global, `query_unscoped`); signup
+  requires a valid unused, unexpired code, which is marked used on success. Admin mints codes.
+  Accept: signup without a valid code 400s; a code works exactly once.
+- [x] **Rate limiting on auth.** In-memory fixed-window limiter (`services/ratelimit.py`) keyed
+  by IP (+ email) on login/signup/reset/verify. Single-instance now; swap to Redis when multi-
+  instance. Accept: burst past the limit 429s; normal use unaffected; Schemathesis still green.
+- [x] **Email verification.** `users.email_verified`; signup sends a purpose-scoped short-lived
+  JWT link (`/api/auth/verify?token=`), `POST /resend-verification`. Soft-gate (don't lock users
+  out) — surfaced in `/me`. Accept: verify link flips the flag; expired/wrong-purpose token 400s.
+- [x] **Password reset.** `POST /forgot-password` (always 200, no account enumeration) emails a
+  purpose-scoped short-lived token; `POST /reset-password` sets a new hash. Reuse the JWT
+  machinery with a `purpose` claim so no token table is needed. Accept: reset flow changes the
+  password; token is single-purpose and expiring; unknown email still 200s.
+- [x] **Per-user LLM cost caps.** `users.monthly_token_budget` (null = unlimited) +
+  `tokens_used`/`usage_period_start`; `services/usage.py` records tokens after each assistant/
+  agency LLM call and refuses (clear message, not a 500) when over budget, resetting monthly.
+  Accept: a user at their cap gets a friendly "limit reached" reply; usage resets next period;
+  unlimited users unaffected.
+- [ ] **Point the app at the cloud URL.** After hosting is chosen: set mobile `defaultApiBase`
+  to the public/Tailscale backend and document member onboarding. (Blocked on hosting choice.)
+
 ## Owner-only ops (not agent tasks)
 
 - [ ] Revoke/rotate the GitHub PATs shared in past chat sessions.

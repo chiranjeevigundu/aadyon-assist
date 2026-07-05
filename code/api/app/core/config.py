@@ -41,8 +41,21 @@ class Settings:
         self.s3_access_key_file = os.getenv("S3_ACCESS_KEY_FILE", "/run/secrets/s3_access_key")
         self.s3_secret_key_file = os.getenv("S3_SECRET_KEY_FILE", "/run/secrets/s3_secret_key")
 
-        # Public-facing URL of this app (used e.g. as the OpenRouter HTTP-Referer).
+        # Public-facing URL of this app (used e.g. as the OpenRouter HTTP-Referer,
+        # and to build email verify/reset links).
         self.app_public_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000").strip()
+
+        # --- Multi-user (family & friends) account hardening ---
+        # Transactional email (Resend-style API). Empty key => mailer logs to stdout
+        # instead of sending, so dev/CI never send. Secret file wins over the env var.
+        self.resend_api_key_file = os.getenv("RESEND_API_KEY_FILE", "/run/secrets/resend_api_key")
+        self.mail_from = os.getenv("MAIL_FROM", "Aadyon Assist <onboarding@resend.dev>").strip()
+        # Require a valid invite code at signup (True for a shared instance).
+        self.invite_required = os.getenv("INVITE_REQUIRED", "true").lower() == "true"
+        # Minutes a verify/reset email link stays valid.
+        self.email_token_minutes = int(os.getenv("EMAIL_TOKEN_MINUTES", "60"))
+        # Default monthly LLM token budget per user (0 or unset => unlimited).
+        self.default_monthly_token_budget = int(os.getenv("DEFAULT_MONTHLY_TOKEN_BUDGET", "0"))
 
         # --- Agentic layer: model routing (OpenRouter cloud + local Ollama) ---
         self.openrouter_base_url = os.getenv(
@@ -119,6 +132,14 @@ class Settings:
             with open(self.jwt_secret_file) as f:
                 return f.read().strip()
         return os.getenv("JWT_SECRET", "").strip()
+
+    @property
+    def resend_api_key(self) -> str:
+        """API key for transactional email (secret file or env; empty => log-only)."""
+        if os.path.exists(self.resend_api_key_file):
+            with open(self.resend_api_key_file) as f:
+                return f.read().strip()
+        return os.getenv("RESEND_API_KEY", "").strip()
 
     @property
     def s3_access_key(self) -> str:
