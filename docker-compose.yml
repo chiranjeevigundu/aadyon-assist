@@ -54,6 +54,7 @@ services:
       - jwt_secret            # signing key for multi-user auth tokens
       - s3_access_key
       - s3_secret_key
+      - resend_api_key        # transactional email (empty file => mailer log-only)
     volumes:
       - ./artifacts:/srv/artifacts
       - ./code/dashboard:/srv/dashboard
@@ -178,3 +179,5 @@ secrets:
     file: ./secrets/s3_access_key.txt
   s3_secret_key:
     file: ./secrets/s3_secret_key.txt
+  resend_api_key:
+    file: ./secrets/resend_api_key.txt
