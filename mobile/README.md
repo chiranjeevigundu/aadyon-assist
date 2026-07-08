@@ -40,6 +40,18 @@ http://mini-a.t<your-tailnet>.ts.net:8000
 
 (or the `100.x.y.z` Tailscale IP). Tap **Test connection** — it calls `GET /api/health`.
 
+To skip that first-launch step entirely, bake your URL in at build time via
+`EXPO_PUBLIC_API_BASE`: put it in `mobile/.env` (gitignored — tailnet hostnames stay out of
+git) for local `expo start`, and set it once per EAS environment for cloud builds:
+
+```bash
+eas env:create --environment production --name EXPO_PUBLIC_API_BASE \
+  --value http://<host>.<your-tailnet>.ts.net:8000 --visibility plaintext --scope project
+```
+
+`src/api.ts` prefers it over `app.json`'s `defaultApiBase` (localhost); the Settings tab
+still overrides both at runtime.
+
 For `npx expo start` itself to reach your laptop, run Expo over the tailnet too if the phone isn't
 on the same LAN:
 
@@ -79,7 +91,8 @@ eas init                             # links the app to YOUR Expo account/projec
 eas build -p ios --profile preview   # sideload or TestFlight
 ```
 
-(`app.json` intentionally ships without an `eas.projectId` — `eas init` adds yours.)
+(`app.json` carries this project's EAS `projectId`/`owner`; if you forked this repo, run
+`eas init` to swap in your own.)
 
 ## Layout
 
