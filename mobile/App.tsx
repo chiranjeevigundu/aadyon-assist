@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { theme } from "./src/theme";
@@ -14,8 +15,10 @@ import DigitalMeScreen from "./src/screens/DigitalMeScreen";
 import TrackerScreen from "./src/screens/TrackerScreen";
 import AgencyScreen from "./src/screens/AgencyScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import MailScreen from "./src/screens/MailScreen";
 
 const Tab = createBottomTabNavigator();
+const SettingsStack = createNativeStackNavigator();
 
 const navTheme = {
   ...DefaultTheme,
@@ -44,6 +47,28 @@ function tabIcon(name: string) {
   );
 }
 
+// Settings hosts sub-pages (mail integrations now, more connectors later),
+// so it's a stack with its own header/back button; the tab header is hidden.
+function SettingsStackScreen({ onLogout }: { onLogout: () => void }) {
+  return (
+    <SettingsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.bg },
+        headerTitleStyle: { color: theme.text, fontWeight: "800" },
+        headerTintColor: theme.accent,
+        headerShadowVisible: false,
+      }}
+    >
+      <SettingsStack.Screen name="SettingsHome" options={{ title: "Settings" }}>
+        {({ navigation }) => (
+          <SettingsScreen onLogout={onLogout} onOpenMail={() => navigation.navigate("Mail")} />
+        )}
+      </SettingsStack.Screen>
+      <SettingsStack.Screen name="Mail" component={MailScreen} options={{ title: "Email accounts" }} />
+    </SettingsStack.Navigator>
+  );
+}
+
 function Tabs({ onLogout }: { onLogout: () => void }) {
   return (
     <Tab.Navigator
@@ -61,8 +86,8 @@ function Tabs({ onLogout }: { onLogout: () => void }) {
       <Tab.Screen name="Me" component={DigitalMeScreen} options={{ title: "Digital Me" }} />
       <Tab.Screen name="Tracker" component={TrackerScreen} />
       <Tab.Screen name="Org" component={AgencyScreen} options={{ title: "Agency" }} />
-      <Tab.Screen name="Settings" options={{ title: "Settings" }}>
-        {() => <SettingsScreen onLogout={onLogout} />}
+      <Tab.Screen name="Settings" options={{ title: "Settings", headerShown: false }}>
+        {() => <SettingsStackScreen onLogout={onLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

@@ -33,6 +33,17 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   `mobile/package.json`) and wire `AssistantScreen.tsx`.
   Accept: visible incremental tokens in the app; non-streaming `/chat` unchanged; tests green.
 
+- [x] **Mobile mail integrations** (owner request, 2026-07-08)
+  Goal: manage mailboxes from the iPhone app, not just the web dashboard.
+  Reuse: the existing backend as-is — generic `/api/email_accounts` CRUD plus
+  `routers/email.py` (`/connect`, `/disconnect`, `/ms/start|complete`, `/sync`,
+  `/extractions/*`); UI mirrors `dashboard/assets/accounts.js`. New
+  `mobile/src/screens/MailScreen.tsx` (add/remove accounts, IMAP app-password connect,
+  Microsoft device-code connect, sync, pending-extraction review), reached from
+  Settings → Connections (the Settings tab is now a native stack).
+  Accept: mobile `npm run typecheck` clean; add → connect → sync → review round-trip
+  works against a running API; mail stays read-only with approve-gated extractions.
+
 - [x] **Web dashboard login**
   Goal: the vanilla-JS dashboards (`/`, `/tracker`, `/data`, `/agency`, `/accounts`) currently
   401 — add a login page + token storage (localStorage) + `Authorization` header in
