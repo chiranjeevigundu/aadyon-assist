@@ -8,8 +8,12 @@ import EventSource from "react-native-sse";
 const BASE_KEY = "aadyon.apiBase";
 const TOKEN_KEY = "aadyon.token";
 
+// Baked in at bundle time from EAS env vars or mobile/.env (gitignored — the
+// tailnet hostname never goes in git); app.json keeps a neutral localhost default.
 const FALLBACK =
-  (Constants.expoConfig?.extra as any)?.defaultApiBase || "http://localhost:8000";
+  process.env.EXPO_PUBLIC_API_BASE ||
+  (Constants.expoConfig?.extra as any)?.defaultApiBase ||
+  "http://localhost:8000";
 
 let cachedBase: string | null = null;
 let cachedToken: string | null | undefined; // undefined = not loaded yet

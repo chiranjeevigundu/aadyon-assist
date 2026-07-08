@@ -16,18 +16,21 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "me.aadyon.assist",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         },
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "The assistant uses the microphone for voice input.",
-        "NSSpeechRecognitionUsageDescription": "Speech is transcribed on-device to text you send to your assistant."
+        "NSMicrophoneUsageDescription": "Allow Aadyon Assist to access the microphone for voice commands",
+        "NSSpeechRecognitionUsageDescription": "Allow Aadyon Assist to recognize your speech"
       }
     },
     "android": {
-      "package": "me.aadyon.assist"
+      "package": "me.aadyon.assist",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -39,7 +42,11 @@
       ]
     ],
     "extra": {
-      "defaultApiBase": "http://localhost:8000"
-    }
+      "defaultApiBase": "http://localhost:8000",
+      "eas": {
+        "projectId": "b8415cd5-c5eb-4c55-b4ee-7e465fbc41a2"
+      }
+    },
+    "owner": "aadyon-assist"
   }
 }
