@@ -44,6 +44,19 @@ Status: `[ ]` open · `[~]` in progress (see HANDOFF.md for who/where) · `[x]` 
   Accept: mobile `npm run typecheck` clean; add → connect → sync → review round-trip
   works against a running API; mail stays read-only with approve-gated extractions.
 
+- [x] **Gmail OAuth connect** (owner request, 2026-07-10)
+  Goal: connect Gmail without an app password (the disabled "Gmail OAuth soon" button).
+  Constraint: Gmail scopes aren't allowed in Google's device-code flow, so the sign-in runs on
+  the phone (auth-code + PKCE via `expo-auth-session`, iOS-type client, reversed-client-id
+  scheme); the backend exchanges the one-time code and keeps only the encrypted refresh token.
+  Reuse: mirrors the Microsoft pair — `services/google_oauth.py` (like `ms_graph.py`) +
+  `services/email_gmail.py` (like `email_graph.py`), dispatched by `auth_type` in
+  `email_ingest.sync_account`; router gains `GET /api/email/google/config` +
+  `POST /{id}/google/complete`. Owner setup in `mobile/README.md` (Google Cloud iOS client,
+  `GOOGLE_CLIENT_ID` in `.env`, app.json scheme + rebuild).
+  Accept: `just test` green (network mocked); connect from the phone lands an encrypted
+  refresh token and Sync pulls via Gmail REST, read-only, extractions approve-gated as ever.
+
 - [x] **Web dashboard login**
   Goal: the vanilla-JS dashboards (`/`, `/tracker`, `/data`, `/agency`, `/accounts`) currently
   401 — add a login page + token storage (localStorage) + `Authorization` header in

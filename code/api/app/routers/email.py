@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from uuid import UUID
 from app.db.session import query
-from app.services import crypto, email_ingest, ms_graph
+from app.services import crypto, email_ingest, google_oauth, ms_graph
 
 router = APIRouter(prefix="/api/email", tags=["email"])
 
@@ -78,6 +78,39 @@ def ms_complete(account_id: UUID, payload: dict):
         raise HTTPException(400, "no refresh token returned")
     try:
         enc = crypto.encrypt(rt)
+    except crypto.CryptoError as e:
+        raise HTTPException(400, str(e)) from e
+    query("UPDATE email_accounts SET secret_enc=%s, status='connected', last_error=NULL WHERE id=%s",
+          (enc, str(account_id)), commit=True)
+    return {"status": "connected"}
+
+
+@router.get("/google/config")
+def google_config():
+    """OAuth client config the mobile app needs to run the PKCE sign-in itself
+    (Gmail scopes aren't allowed in Google's device flow, so auth happens on-device)."""
+    try:
+        return google_oauth.client_config()
+    except google_oauth.GoogleOAuthError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/{account_id}/google/complete")
+def google_complete(account_id: UUID, payload: dict):
+    """Exchange the app's one-time PKCE auth code; store the refresh token encrypted."""
+    p = payload or {}
+    code = str(p.get("code") or "").strip()
+    verifier = str(p.get("code_verifier") or "").strip()
+    redirect_uri = str(p.get("redirect_uri") or "").strip()
+    if not code or not verifier or not redirect_uri:
+        raise HTTPException(400, "code, code_verifier and redirect_uri required")
+    if not query("SELECT 1 FROM email_accounts WHERE id=%s", (str(account_id),)):
+        raise HTTPException(404, "account not found")
+    try:
+        tok = google_oauth.exchange_code(code, verifier, redirect_uri)
+        enc = crypto.encrypt(tok["refresh_token"])
+    except google_oauth.GoogleOAuthError as e:
+        raise HTTPException(400, str(e)) from e
     except crypto.CryptoError as e:
         raise HTTPException(400, str(e)) from e
     query("UPDATE email_accounts SET secret_enc=%s, status='connected', last_error=NULL WHERE id=%s",
