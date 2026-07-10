@@ -4,7 +4,13 @@ import { Screen, Card } from "../components";
 import { getApiBase, setApiBase, api, ApiError, clearToken, User } from "../api";
 import { theme } from "../theme";
 
-export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) {
+export default function SettingsScreen({
+  onLogout,
+  onOpenMail,
+}: {
+  onLogout?: () => void;
+  onOpenMail?: () => void;
+}) {
   const [base, setBase] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [ok, setOk] = useState<boolean | null>(null);
@@ -50,6 +56,19 @@ export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) 
         {user?.email ? <Text style={s.hint}>{user.email}</Text> : null}
         <TouchableOpacity style={[s.btn, s.btnGhost, { marginTop: 14 }]} onPress={logout}>
           <Text style={s.btnGhostText}>Log out</Text>
+        </TouchableOpacity>
+      </Card>
+
+      <Card title="Connections">
+        <TouchableOpacity style={s.linkRow} onPress={onOpenMail}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.linkTitle}>📬  Email accounts</Text>
+            <Text style={s.hint}>
+              Connect iCloud/IMAP or Microsoft mailboxes. Mail is read-only; bills, deadlines and
+              subscriptions it finds queue for your approval.
+            </Text>
+          </View>
+          <Text style={s.chevron}>›</Text>
         </TouchableOpacity>
       </Card>
 
@@ -99,6 +118,9 @@ export default function SettingsScreen({ onLogout }: { onLogout?: () => void }) 
 
 const s = StyleSheet.create({
   acctName: { color: theme.text, fontSize: 16, fontWeight: "700" },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  linkTitle: { color: theme.text, fontSize: 15, fontWeight: "700" },
+  chevron: { color: theme.textDim, fontSize: 26, fontWeight: "300" },
   label: { color: theme.textDim, fontSize: 12, marginBottom: 6 },
   input: {
     backgroundColor: theme.cardAlt,
