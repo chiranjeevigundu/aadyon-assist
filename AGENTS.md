@@ -31,8 +31,10 @@ always-on "Mini-A" server and is reached over Tailscale.
    isolation contract now — never bypass it (no unscoped `query()` on per-user tables, always
    `FORCE ROW LEVEL SECURITY`). Do not run `tailscale funnel` casually.
 4. **Secrets come from Docker secrets**, not committed env values (`db_password`, `jwt_secret`,
-   `openrouter_api_key`, `email_key`). Read order is always *secret file → env var* (see
-   `core/config.py`). Create `secrets/jwt_secret.txt` before `docker compose up`.
+   `s3_*`, `resend_api_key`). Read order is always *secret file → env var* (see
+   `core/config.py`), so `OPENROUTER_API_KEY` and `EMAIL_ENC_KEY` — which docker-compose.yml
+   does not wire as secret files — are fed from the gitignored `.env` today. Create
+   `secrets/jwt_secret.txt` before `docker compose up`.
 5. **If you add a third-party import, add it to `code/api/requirements.txt`** (pinned). A clean
    `docker compose build --no-cache` must succeed.
 6. **Verify before declaring done.** Run the verify loop (below). For refactors that shouldn't
