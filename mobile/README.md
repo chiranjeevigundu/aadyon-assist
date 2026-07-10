@@ -81,6 +81,31 @@ This keeps the app private: it stays reachable only over Tailscale, never the pu
 (On iOS, plain-`http://` requests are allowed because `NSAllowsArbitraryLoads` is set in
 `app.json` — fine for a tailnet-only backend.)
 
+## Gmail OAuth (one-time Google Cloud setup)
+
+Gmail scopes aren't allowed in Google's device-code flow, so the sign-in runs **on the phone**
+(authorization-code + PKCE via `expo-auth-session`); the backend exchanges the one-time code and
+stores only the encrypted refresh token. To enable it:
+
+1. In [Google Cloud Console](https://console.cloud.google.com) create (or pick) a project, enable
+   the **Gmail API**, and configure the OAuth consent screen (External + your account as a test
+   user is fine for personal use).
+2. Create an OAuth client of type **iOS** (Credentials → Create credentials → OAuth client ID).
+   Bundle ID: `me.aadyon.assist`. Copy the client ID
+   (`<number>-<hash>.apps.googleusercontent.com`).
+3. On the server, set `GOOGLE_CLIENT_ID=<that id>` in `.env` and restart the api container
+   (iOS clients have no secret; leave `GOOGLE_CLIENT_SECRET` empty).
+4. In `app.json`, add the reversed client ID as a URL scheme so the sign-in can bounce back into
+   the app, then rebuild (EAS build — this is a native change):
+
+   ```json
+   "scheme": "com.googleusercontent.apps.<number>-<hash>"
+   ```
+
+5. In the app: add a Gmail account (auth `OAuth · Google`) → **Connect (Google)** → sign in and
+   consent. Read-only scope (`gmail.readonly`); sync works everywhere afterwards, including the
+   web dashboard.
+
 ## Build a standalone app (optional, later)
 
 When you want it off Expo Go and onto the home screen as its own icon:
