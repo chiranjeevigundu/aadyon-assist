@@ -157,6 +157,40 @@ export default function MailScreen() {
     }
   }
 
+  async function googleConnect(id: string) {
+    setBusy(id);
+    try {
+      const cfg = await api.emailGoogleConfig();
+      // Lazy import — expo-auth-session needs native modules (an EAS build, not Expo Go).
+      const AuthSession = await import("expo-auth-session");
+      // iOS OAuth clients redirect via the reversed-client-id custom scheme; it must
+      // also be listed in app.json "scheme" (see mobile/README.md) and built in.
+      const scheme = "com.googleusercontent.apps." + cfg.client_id.replace(".apps.googleusercontent.com", "");
+      const redirectUri = `${scheme}:/oauthredirect`;
+      const request = new AuthSession.AuthRequest({
+        clientId: cfg.client_id,
+        scopes: cfg.scope.split(" "),
+        redirectUri,
+        usePKCE: true,
+      });
+      // Only the auth endpoint is needed — the code is exchanged server-side.
+      const result = await request.promptAsync({ authorizationEndpoint: cfg.auth_endpoint });
+      if (result.type !== "success" || !result.params.code) {
+        if (result.type === "cancel" || result.type === "dismiss") return; // user backed out
+        throw new Error(
+          result.type === "error" ? result.error?.message || "Google sign-in failed" : "Google sign-in failed"
+        );
+      }
+      await api.emailGoogleComplete(id, result.params.code, request.codeVerifier || "", redirectUri);
+      setNote("Google connected ✓");
+      await load();
+    } catch (e) {
+      Alert.alert("Google sign-in failed", errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function msConnect(id: string) {
     stopMsPolling();
     setBusy(id);
@@ -288,8 +322,10 @@ export default function MailScreen() {
         <Text style={s.hint}>
           <Text style={{ fontWeight: "700", color: theme.text }}>iCloud: </Text>
           generate an app-specific password at appleid.apple.com → Sign-In &amp; Security →
-          App-Specific Passwords, then Connect below and paste it. It's encrypted at rest; mail is
-          read-only and found items queue for your approval. (Gmail OAuth comes later.)
+          App-Specific Passwords, then Connect below and paste it.{" "}
+          <Text style={{ fontWeight: "700", color: theme.text }}>Gmail / Microsoft: </Text>
+          tap Connect and sign in — no password stored. Everything is encrypted at rest; mail is
+          read-only and found items queue for your approval.
         </Text>
       </Card>
 
@@ -339,8 +375,15 @@ export default function MailScreen() {
                       disabled={isBusy}
                       primary
                     />
+                  ) : a.auth_type === "oauth_google" ? (
+                    <Btn
+                      label={isBusy ? "Signing in…" : "Connect (Google)"}
+                      onPress={() => googleConnect(a.id)}
+                      disabled={isBusy}
+                      primary
+                    />
                   ) : (
-                    <Btn label="Gmail OAuth soon" disabled />
+                    <Btn label="Unsupported auth" disabled />
                   )}
                   <Btn label="Remove" onPress={() => removeAccount(a.id)} disabled={isBusy} danger />
                 </View>
