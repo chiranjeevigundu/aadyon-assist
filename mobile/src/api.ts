@@ -137,6 +137,7 @@ export type MsDeviceCode = {
   interval: number;
   expires_in: number;
 };
+export type GoogleAuthConfig = { client_id: string; auth_endpoint: string; scope: string };
 export type ChatResult = {
   conversation_id: string;
   reply: string;
@@ -187,6 +188,9 @@ export const api = {
   emailMsStart: (id: string) => post<MsDeviceCode>(`/api/email/${id}/ms/start`, {}),
   emailMsComplete: (id: string, device_code: string) =>
     post<{ status: string }>(`/api/email/${id}/ms/complete`, { device_code }),
+  emailGoogleConfig: () => request<GoogleAuthConfig>("/api/email/google/config"),
+  emailGoogleComplete: (id: string, code: string, code_verifier: string, redirect_uri: string) =>
+    post<{ status: string }>(`/api/email/${id}/google/complete`, { code, code_verifier, redirect_uri }),
   emailExtractions: (status = "pending") =>
     request<EmailExtraction[]>(`/api/email/extractions?status=${encodeURIComponent(status)}`),
   approveExtraction: (id: string) =>
