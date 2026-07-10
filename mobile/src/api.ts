@@ -86,10 +86,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new ApiError(res.status, body || `HTTP ${res.status}`);
+    throw new ApiError(res.status, errorDetail(body) || `HTTP ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+// FastAPI errors are {"detail": "..."} — show the human part, not raw JSON.
+function errorDetail(body: string): string {
+  try {
+    const d = JSON.parse(body)?.detail;
+    if (typeof d === "string") return d;
+    if (d) return JSON.stringify(d);
+  } catch {}
+  return body;
 }
 
 function post<T>(path: string, body: any): Promise<T> {
@@ -98,6 +108,35 @@ function post<T>(path: string, body: any): Promise<T> {
 
 export type User = { id: string; email: string; display_name?: string };
 export type AuthResult = { token: string; user: User };
+export type EmailAccount = {
+  id: string;
+  email: string;
+  provider: string;
+  purpose?: string | null;
+  auth_type: string;
+  imap_host?: string | null;
+  imap_port?: number | null;
+  status?: string | null;
+  last_sync?: string | null;
+  last_error?: string | null;
+};
+export type EmailExtraction = {
+  id: string;
+  kind?: string | null;
+  subject?: string | null;
+  sender?: string | null;
+  summary?: string | null;
+  payload?: Record<string, any> | null;
+  account_email?: string | null;
+  message_date?: string | null;
+};
+export type MsDeviceCode = {
+  user_code: string;
+  verification_uri: string;
+  device_code: string;
+  interval: number;
+  expires_in: number;
+};
 export type ChatResult = {
   conversation_id: string;
   reply: string;
@@ -125,6 +164,35 @@ export const api = {
   agencyHealth: () => request<any>("/api/agency/health"),
   agencyTasks: (status?: string) =>
     request<any[]>(`/api/agency/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+
+  // Mail integrations (mirrors the web dashboard's accounts page).
+  // Accounts are generic CRUD rows; connect/sync/review live under /api/email.
+  emailAccounts: () => request<EmailAccount[]>("/api/email_accounts"),
+  addEmailAccount: (payload: {
+    email: string;
+    provider: string;
+    purpose?: string | null;
+    auth_type: string;
+    status: string;
+    imap_host?: string | null;
+    imap_port?: number | null;
+  }) => post<EmailAccount>("/api/email_accounts", payload),
+  deleteEmailAccount: (id: string) =>
+    request<void>(`/api/email_accounts/${id}`, { method: "DELETE" }),
+  emailConnect: (id: string, password: string) =>
+    post<{ status: string }>(`/api/email/${id}/connect`, { password }),
+  emailDisconnect: (id: string) => post<{ status: string }>(`/api/email/${id}/disconnect`, {}),
+  emailSync: (id: string) =>
+    post<{ scanned?: number; queued?: number }>(`/api/email/${id}/sync`, {}),
+  emailMsStart: (id: string) => post<MsDeviceCode>(`/api/email/${id}/ms/start`, {}),
+  emailMsComplete: (id: string, device_code: string) =>
+    post<{ status: string }>(`/api/email/${id}/ms/complete`, { device_code }),
+  emailExtractions: (status = "pending") =>
+    request<EmailExtraction[]>(`/api/email/extractions?status=${encodeURIComponent(status)}`),
+  approveExtraction: (id: string) =>
+    post<{ applied_as?: string }>(`/api/email/extractions/${id}/approve`, {}),
+  dismissExtraction: (id: string) =>
+    post<{ status: string }>(`/api/email/extractions/${id}/dismiss`, {}),
 
   // Assistant (Aadyon Assist) & Documents
   uploadDocument: async (
