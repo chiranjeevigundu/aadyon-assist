@@ -126,6 +126,13 @@ lint:
 verify base="http://localhost:8000" token="":
     python scripts/verify.py --base {{base}} {{ if token != "" { "--token " + token } else { "" } }}
 
+# Sync a job-tracker xlsx into /api/applications (idempotent upsert; feeds the
+# Career dimension). Auth via $AADYON_TOKEN or $AADYON_EMAIL/$AADYON_PASSWORD —
+# never put secrets on the command line. Add `--dry-run` to preview.
+# e.g. `AADYON_TOKEN=... just sync-jobs ~/JOB_TRACKER.xlsx --dry-run`
+sync-jobs xlsx *args:
+    python scripts/sync_job_tracker.py --xlsx {{xlsx}} {{args}}
+
 # Trigger an immediate DB backup (the backup service also runs daily)
 backup-now:
     docker compose exec backup /backup.sh
