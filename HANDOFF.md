@@ -8,6 +8,39 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
+## Latest session (2026-07-18) — job-tracker sync
+
+**Context correction:** a prior Cowork session was reported to have left an uncommitted
+job-tracker sync, but nothing was ever committed and this was a fresh clone — that work was gone
+(no stash / untracked / branch commits). Rebuilt from scratch against the real API surface.
+
+New, on branch `claude/job-tracker-sync-v3urhe` (see session-log row for the PR):
+- `scripts/sync_job_tracker.py` — reads a tracker `.xlsx` (openpyxl, lazy import) and upserts into
+  `/api/applications`: fuzzy/case-insensitive header→column mapping, natural-key **(company, role)**
+  matching, create-or-PATCH-only-changed. Values from the xlsx and from API responses are reduced
+  to one canonical form before comparison (dates → `YYYY-MM-DD`, money `$120,000`/`150k`/int →
+  2-decimal float matching `numeric(12,2)`), so a re-run is a genuine no-op — this is the
+  date/float-equality + PATCH-diff correctness the task called out. Empty cells are dropped, so a
+  sparse tracker never clears existing data. Auth via `$AADYON_TOKEN` or `$AADYON_EMAIL/PASSWORD`.
+- `just sync-jobs <xlsx> [--dry-run]`; `openpyxl==3.1.5` pinned in `code/api/requirements.txt`;
+  `scripts` added to pytest `pythonpath`.
+- `tests/test_sync_job_tracker.py` (10 tests, DB-free) covering canon/equality, fuzzy headers, diff.
+- Windows scheduling: `scripts/sync_job_tracker.ps1` (secrets from env, none in the file) +
+  `docs/JOB_TRACKER_SYNC.md` (schtasks entry ~30 min after the morning digest).
+
+**Verified:** `just test` → 195 passed (185 baseline + 10 new); `ruff check .` clean. Drove the
+script end-to-end against a real HTTP server that mirrors the CRUD router (numeric→float, date→ISO
+echo) with a real 18-row xlsx: dry-run wrote nothing → 18 creates → **2nd run 0 changes (idempotent)**
+→ editing one cell produced exactly one single-field PATCH.
+
+**Owner still to do (couldn't run from the cloud session — no Docker daemon, no access to the
+Windows `D:\…\JOB_TRACKER.xlsx`):** run `just up-dev` then
+`AADYON_TOKEN=… just sync-jobs D:\resume\CV\interview-prep\JOB_TRACKER.xlsx --dry-run`, then for
+real, and confirm the rows show in `/api/applications` + the Career dimension; then register the
+Task Scheduler entry per `docs/JOB_TRACKER_SYNC.md`.
+
+---
+
 ## Current state (full brief — written for a cold start)
 
 **The original ROADMAP build-out is COMPLETE**.
@@ -117,6 +150,7 @@ if pre-yoyo).
 
 | Date | Agent | Branch / PR | What changed | State left |
 |---|---|---|---|---|
+| 2026-07-18 | Claude | `claude/job-tracker-sync-v3urhe` (PR) | Job-tracker → `/api/applications` sync (rebuilt; the reported uncommitted Cowork work never existed in this clone). `scripts/sync_job_tracker.py` (openpyxl, fuzzy headers, (company,role) match, create/PATCH-only-changed, canonical date/float equality so re-runs are no-ops, blanks never clear), `just sync-jobs`, `openpyxl==3.1.5` pinned, 10 DB-free tests, `scripts/sync_job_tracker.ps1` + `docs/JOB_TRACKER_SYNC.md` for a Task Scheduler entry ~30 min after the morning digest (secrets from env, never committed). | `just test` 195 green, `ruff check .` clean; end-to-end driven vs a CRUD-mirroring HTTP server + real 18-row xlsx (dry-run→18 creates→idempotent 2nd run→1-field PATCH on edit). PR open. Owner runs the live `just up-dev`+`sync-jobs` against the real xlsx and registers the scheduler task (no Docker/Windows access from the cloud session). |
 | 2026-07-10 | Claude | `claude/mail-integrations-mobile-qq4gxy` (PR, reused post-merge) | Gmail OAuth connect (owner request). Backend mirrors the Microsoft pair: `services/google_oauth.py` (PKCE code exchange + token refresh + Gmail REST fetch, network errors → 4xx never 5xx) + `services/email_gmail.py` (sync path), `oauth_google` dispatch in `email_ingest`, router `GET /api/email/google/config` + `POST /{id}/google/complete`. Mobile: "Connect (Google)" in MailScreen runs the auth-code+PKCE sign-in via `expo-auth-session` (new pinned deps: expo-auth-session/expo-crypto/expo-web-browser) and posts the code; server stores only the encrypted refresh token. Sign-in is on-device because Google's device flow forbids Gmail scopes. **Owner setup before it works** (mobile/README.md "Gmail OAuth" section): Google Cloud iOS client + `GOOGLE_CLIENT_ID` in server `.env` + reversed-client-id `scheme` in app.json + EAS rebuild. Verified: pytest 185 green (11 new, network mocked), ruff + mobile typecheck clean; live-drove the real API + Expo-web UI — config 400s helpfully with no client id, and with one set the complete endpoint round-tripped to Google's real token endpoint (fake code → Google's "OAuth client was not found" as clean 400); missing fields 400, unknown account 404, sync-unconnected 400. | PR open. Web dashboard still shows "Gmail OAuth soon" (reversed-scheme flow is mobile-only); accounts connected on the phone sync/manage fine from the web. |
 | 2026-07-10 | Claude | `claude/mail-integrations-mobile-qq4gxy` (PR, reused post-merge) | Mail feature shipped + verified end-to-end. Verified the merged feature by running the real stack in-session (Postgres 16 + uvicorn + a fake IMAP-SSL server, app driven via Expo web + Playwright): signup → add account → failed-connect surfaces IMAP error in-row → connect → sync (empty inbox) → seeded extraction approved into `subscriptions` → visible in Tracker. Owner then verified on-device with real mail (iCloud connect, sync found a Best Buy deadline, approve landed it in `deadlines`). Release gotchas learned: TestFlight build 3 was built from a stale server checkout (EAS uploads the local tree, not git — always `git pull` on `main` before `eas build`); build 4 is the one with the feature. Server config: `EMAIL_ENC_KEY` was unset in prod `.env` (connect 400s until set; key rotated after being pasted into a chat). This PR: record `ios.buildNumber` 4, fix AGENTS.md rule-4 secret list (openrouter/email keys actually come from `.env`, not Docker secrets), this log row. Known gaps for ROADMAP: Gmail OAuth (button intentionally disabled; Gmail works today via IMAP app password), "Other (IMAP)" form has no custom host/port fields (web + mobile). | Docs + one-line version bump only; no runtime change. |
 | 2026-07-08 | Claude | `claude/mail-integrations-mobile-qq4gxy` (PR) | Mail integrations in the iPhone app (owner request), mirroring the web accounts page against the unchanged backend: new `mobile/src/screens/MailScreen.tsx` — list/add/remove `email_accounts`, IMAP app-password connect, Microsoft device-code connect (opens the verification URL via `Linking`, polls `/ms/complete` until connected/expired), sync-now, disconnect, and the pending-extraction review queue with approve/dismiss. Reached from Settings → Connections; the Settings tab is now a native stack (`@react-navigation/native-stack` was already a dep — no new packages). `mobile/src/api.ts` gains the email endpoints + `EmailAccount`/`EmailExtraction`/`MsDeviceCode` types, and `ApiError` now surfaces FastAPI's `detail` instead of raw JSON bodies (app-wide, matches the web client). Zero backend changes. | mobile `npm run typecheck` clean; pytest 174 green (untouched baseline); PR open. Reminder: connect/sync round-trip on a device needs a backend the phone can reach (tailnet) — smoke-test on TestFlight after merge. |
