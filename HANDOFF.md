@@ -25,6 +25,10 @@ three hardcoded assumptions blocked it. All three fixed, with tests:
 - Docs: `docs/HOSTING.md` (provider-agnostic recipe + env table + AWS/Azure/GCP/Fly/Render
   matrix), `docs/AWS_EC2_DEPLOY.md` (worked EC2+RDS runbook), `docs/CLOUD.md` cross-links.
 - Tests: `tests/test_cloud_portability.py` (sslmode passthrough, S3 region/default-chain).
+- AWS free-tier provisioning: `scripts/aws/provision-free-tier.sh` + `teardown.sh` + README
+  (run in CloudShell; EC2 t3.micro + RDS db.t3.micro + S3, private DB, SSH-locked, no
+  secrets in the files — DB password generated at runtime). Owner runs it; the env's AWS
+  creds are invalid (internal proxy), so provisioning can't happen from the cloud session.
 
 **Verified:** `just test` 200 passed (5 new), `ruff check .` clean; `docker compose config`
 renders the parametrized migrate command correctly; drove yoyo + the app live against an
