@@ -6,6 +6,11 @@ platform (AWS / GCP / Fly.io / Render / a plain VM). The two things that differ 
 cloud — where Postgres lives and where uploaded files live — are already config switches,
 not code changes.
 
+> **See also:** [HOSTING.md](HOSTING.md) — the provider-agnostic recipe with an env
+> reference and a per-provider mapping (AWS/Azure/GCP/Fly/Render), and
+> [AWS_EC2_DEPLOY.md](AWS_EC2_DEPLOY.md) — a fully-worked EC2 + RDS runbook. This file
+> is the conceptual background; those are the how-to.
+
 ## What's already cloud-ready
 
 - **Object storage is a config flip.** `STORAGE_BACKEND=s3` routes document uploads to any

@@ -53,7 +53,7 @@ def pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None:
         s = get_settings()
-        _pool = ThreadedConnectionPool(
+        kwargs = dict(
             minconn=1,
             maxconn=10,
             host=s.db_host,
@@ -62,6 +62,11 @@ def pool() -> ThreadedConnectionPool:
             user=s.db_user,
             password=s.db_password,
         )
+        # Only pass sslmode when explicitly configured; unset keeps libpq's default
+        # ('prefer'), so local dev is unchanged while managed DBs can enforce TLS.
+        if getattr(s, "db_sslmode", ""):
+            kwargs["sslmode"] = s.db_sslmode
+        _pool = ThreadedConnectionPool(**kwargs)
     return _pool
 
 

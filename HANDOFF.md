@@ -8,6 +8,30 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
+## Latest session (2026-07-20) — cloud portability ("host anywhere")
+
+Made the stack genuinely hostable on any cloud (AWS/Azure/GCP/Fly/Render/VM) — the two
+cloud-specific pieces (managed Postgres, object store) were already config switches, but
+three hardcoded assumptions blocked it. All three fixed, with tests:
+- **`migrate` no longer hardcodes `@db:5432`** — the compose command reads
+  `DB_HOST`/`DB_PORT`/`DB_SSLMODE` (defaults keep local behavior identical), so the stock
+  `just migrate` targets any managed Postgres.
+- **`DB_SSLMODE` passthrough** (`core/config.py` + `db/session.py`) — unset keeps libpq
+  `prefer`; set `require` to enforce TLS on RDS/Azure/Cloud SQL.
+- **S3 client** (`services/storage.py`) — takes `S3_REGION`/`AWS_REGION` and falls back to
+  boto3's default credential chain (instance role / workload identity) when no keys given,
+  so the same image runs anywhere and against any S3-compatible store (R2/GCS/MinIO) via
+  `S3_ENDPOINT_URL`.
+- Docs: `docs/HOSTING.md` (provider-agnostic recipe + env table + AWS/Azure/GCP/Fly/Render
+  matrix), `docs/AWS_EC2_DEPLOY.md` (worked EC2+RDS runbook), `docs/CLOUD.md` cross-links.
+- Tests: `tests/test_cloud_portability.py` (sslmode passthrough, S3 region/default-chain).
+
+**Verified:** `just test` 200 passed (5 new), `ruff check .` clean; `docker compose config`
+renders the parametrized migrate command correctly; drove yoyo + the app live against an
+**external** local Postgres (host:port + `sslmode=prefer`) — migrations applied, `/api/health`
+→ `db:up`. Note: Azure Blob isn't S3-compatible (documented — use local/single-VM or R2/MinIO).
+Branch restarted from `main` (PR #56 already merged); this is a new PR.
+
 ## Latest session (2026-07-18) — job-tracker sync
 
 **Context correction:** a prior Cowork session was reported to have left an uncommitted

@@ -30,15 +30,22 @@ def _backend() -> str:
 
 def get_s3_client():
     s = get_settings()
-    if not s.s3_access_key or not s.s3_secret_key:
+    if _backend() != "s3":
         return None
 
-    return boto3.client(
-        "s3",
-        endpoint_url=s.s3_endpoint_url if s.s3_endpoint_url else None,
-        aws_access_key_id=s.s3_access_key,
-        aws_secret_access_key=s.s3_secret_key,
-    )
+    kwargs = {}
+    if s.s3_endpoint_url:
+        kwargs["endpoint_url"] = s.s3_endpoint_url
+    region = getattr(s, "s3_region", "")
+    if region and isinstance(region, str):
+        kwargs["region_name"] = region
+    # Explicit keys when both are provided; otherwise fall back to boto3's default
+    # credential chain — EC2 instance role, GCP/Azure workload identity, env vars,
+    # ~/.aws — so the same image runs on any cloud without baking in access keys.
+    if s.s3_access_key and s.s3_secret_key:
+        kwargs["aws_access_key_id"] = s.s3_access_key
+        kwargs["aws_secret_access_key"] = s.s3_secret_key
+    return boto3.client("s3", **kwargs)
 
 
 def _get_local_path(object_key: str):

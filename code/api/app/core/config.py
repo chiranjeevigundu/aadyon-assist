@@ -19,6 +19,10 @@ class Settings:
         # 202607032100_restricted_app_role.sql.
         self.db_user = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "aadyon")
         self.db_password_file = os.getenv("DB_PASSWORD_FILE", "/run/secrets/db_password")
+        # TLS mode for the DB connection (libpq sslmode). Empty => libpq default
+        # ('prefer', which already negotiates TLS when a managed DB forces it).
+        # Set to 'require'/'verify-full' to *enforce* encryption on RDS/Cloud SQL/Azure.
+        self.db_sslmode = os.getenv("DB_SSLMODE", "").strip()
         # app/core/config.py -> app -> api -> code ; dashboard sits beside `code/api`
         # in the repo (code/dashboard) and beside `/srv/api` in the image (/srv/dashboard).
         self.dashboard_dir = Path(__file__).resolve().parents[3] / "dashboard"
@@ -38,6 +42,12 @@ class Settings:
         # --- Cloud Storage (S3-compatible) ---
         self.s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "").strip()
         self.s3_bucket = os.getenv("S3_BUCKET_NAME", "aadyon-assist").strip()
+        # Region for the object store. boto3 sets none in code, so provide it here
+        # (S3_REGION, or the standard AWS_REGION / AWS_DEFAULT_REGION). Harmless for
+        # non-AWS S3-compatible stores that ignore it.
+        self.s3_region = (
+            os.getenv("S3_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION", "")
+        ).strip()
         self.s3_access_key_file = os.getenv("S3_ACCESS_KEY_FILE", "/run/secrets/s3_access_key")
         self.s3_secret_key_file = os.getenv("S3_SECRET_KEY_FILE", "/run/secrets/s3_secret_key")
 

@@ -28,12 +28,15 @@ services:
       - ./code/db:/srv/db   # host-mounted so `yoyo new` writes into the repo
     entrypoint: ["bash", "-c"]
     command:
+      # DB_HOST/DB_PORT default to the local `db` container but point at any managed
+      # Postgres (RDS/Cloud SQL/Azure) when set in .env. DB_SSLMODE defaults to
+      # 'prefer' (negotiates TLS when the server forces it; falls back locally).
       - >
         yoyo apply -v --batch
-        --database "postgresql://$${POSTGRES_USER}:$$(cat /run/secrets/db_password)@db:5432/$${POSTGRES_DB}"
+        --database "postgresql://$${POSTGRES_USER}:$$(cat /run/secrets/db_password)@$${DB_HOST:-db}:$${DB_PORT:-5432}/$${POSTGRES_DB}?sslmode=$${DB_SSLMODE:-prefer}"
         /srv/db/migrations
         &&
-        python -c "import os, psycopg2; pw = open('/run/secrets/db_password').read().strip(); conn = psycopg2.connect(host='db', dbname=os.environ['POSTGRES_DB'], user=os.environ['POSTGRES_USER'], password=pw); conn.autocommit = True; conn.cursor().execute('ALTER ROLE aadyon_app WITH PASSWORD %s', (pw,))"
+        python -c "import os, psycopg2; pw = open('/run/secrets/db_password').read().strip(); conn = psycopg2.connect(host=os.environ.get('DB_HOST','db'), port=os.environ.get('DB_PORT','5432'), dbname=os.environ['POSTGRES_DB'], user=os.environ['POSTGRES_USER'], password=pw, sslmode=os.environ.get('DB_SSLMODE','prefer')); conn.autocommit = True; conn.cursor().execute('ALTER ROLE aadyon_app WITH PASSWORD %s', (pw,))"
     depends_on:
       db:
         condition: service_healthy
