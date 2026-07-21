@@ -4,6 +4,7 @@
 # Run in AWS CloudShell / a shell with `aws` configured.
 set -uo pipefail
 export AWS_DEFAULT_REGION=us-east-1
+export AWS_PAGER=""              # don't pipe CLI output through a pager (would stall the script)
 PROJECT=aadyon
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=${PROJECT}-uploads-${ACCOUNT}

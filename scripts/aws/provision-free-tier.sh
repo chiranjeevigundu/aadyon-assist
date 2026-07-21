@@ -15,6 +15,7 @@ set -euo pipefail
 
 ### ---- CONFIG ---------------------------------------------------------------
 export AWS_DEFAULT_REGION=us-east-1
+export AWS_PAGER=""              # don't pipe CLI output through a pager (would stall the script)
 PROJECT=aadyon
 INSTANCE_TYPE=t3.micro          # free tier
 DB_CLASS=db.t3.micro            # free tier
