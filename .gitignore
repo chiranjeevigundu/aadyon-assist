@@ -38,3 +38,9 @@ aadyon_dump.sql
 # OS
 .DS_Store
 Thumbs.db
+
+# Local machine tooling (per-agent/per-host, not shared)
+.claude/
+_healthcheck.bat
+_healthcheck.out.txt
+start-stack.bat
