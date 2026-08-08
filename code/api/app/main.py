@@ -1,4 +1,7 @@
 """Aadyon Assist API — application factory and wiring."""
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,8 +13,32 @@ from app.routers.auth import get_current_user
 from app.routers.crud import CRUD_ROUTERS
 
 
+def _bootstrap_storage() -> None:
+    """On an S3-mode deployment, create the bucket if it doesn't exist so a fresh AWS
+    account or a just-started emulator works with zero manual `aws s3 mb`. Best-effort:
+    never blocks or fails startup — if the store is down or auto-create is off, we log
+    and carry on; the first upload will surface any real problem."""
+    s = get_settings()
+    if s.storage_backend != "s3" or not s.s3_auto_create_bucket:
+        return
+    log = logging.getLogger(__name__)
+    try:
+        from app.services import storage
+
+        if storage.ensure_bucket():
+            log.info("Storage ready: bucket %r via %s", s.s3_bucket, s.s3_endpoint_url or "AWS S3")
+    except Exception as e:  # noqa: BLE001 — startup must never crash on storage
+        log.warning("Storage bootstrap skipped: %s", e)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _bootstrap_storage()
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Aadyon Assist", version="0.2.0")
+    app = FastAPI(title="Aadyon Assist", version="0.2.0", lifespan=lifespan)
 
     # Postgres text can never contain NUL (0x00); psycopg2 raises a bare ValueError
     # when such a value reaches a query, which would surface as a 500. Reject NUL in
