@@ -8,7 +8,49 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Latest session (2026-07-18) — job-tracker sync
+## Latest session (2026-08-08) — cloud-agnostic object storage (AWS ⇄ local emulator)
+
+**Goal:** the owner moved file storage from real AWS to the local **Floci** emulator
+(`D:\AI\HemoLab\floci-local-cloud` + `floci-ui`, S3 API on `:4566`). Requirement: aadyon must
+migrate between real AWS and any local emulator **by config only**, easy for anyone — no code
+bound to one cloud. Storage already abstracted `local`/`s3`/`mock`; the S3 path just wasn't
+portable enough (no region, no addressing-style control, no bucket bootstrap).
+
+Changed (storage layer stays the *only* thing that touches boto3 — routers call
+`app.services.storage`):
+- `core/config.py` — new config knobs: `S3_REGION` (honors `AWS_REGION`/`AWS_DEFAULT_REGION`),
+  `S3_FORCE_PATH_STYLE` (tri-state `auto` = path-style when an endpoint is set → emulators,
+  virtual-host otherwise → AWS), `S3_AUTO_CREATE_BUCKET`.
+- `services/storage.py` — `get_s3_client()` now passes `region_name` + `botocore Config`
+  addressing style, and falls back to the **ambient AWS credential chain** (IAM role) when no
+  static keys are set. New idempotent `ensure_bucket()` (handles the us-east-1
+  LocationConstraint quirk).
+- `main.py` — **`lifespan`** handler best-effort creates the bucket on startup (never blocks/
+  crashes startup); `just storage-init` does it on demand.
+- Docs: **`docs/cloud-storage.md`** (copy-paste AWS vs emulator profiles + contributor rules),
+  linked from `docs/CLOUD.md`; storage blocks added to both `.env*.example` and live `.env`.
+- Tests: 8 new in `tests/test_storage.py` (client config, path vs virtual, ambient-cred None
+  fallback, ensure_bucket create/noop/region-constraint).
+
+**Verified:** `ruff check .` clean; **`pytest` → 202 passed** (was 195 + 7 net new). Proved the
+new `ensure_bucket()` auto-creates a fresh bucket on the **live Floci** emulator + file
+round-trip, idempotent on 2nd call. Rebuilt the api image, recreated api/briefing/agency —
+`/api/health` 200, container healthy, storage bootstrap ran with no warning. Live in-container
+round-trip through the rebuilt image confirms `region=us-east-1, addressing=path` and
+upload/download works.
+
+**To switch this instance to real AWS later:** in `.env`, unset `S3_ENDPOINT_URL`, set
+`S3_REGION` to the bucket's region, put real IAM creds in `secrets/s3_*.txt` (or use a role),
+then `docker compose up -d --force-recreate api briefing agency`. See `docs/cloud-storage.md`.
+
+**Note:** the Floci emulator is an external dependency for S3 mode but lives in a *separate*
+repo (`D:\AI\HemoLab\floci-ui`, running on `:4566`); aadyon reaches it at
+`host.docker.internal:4566`. Nothing here starts it. These changes are **uncommitted** on
+`main` (owner to review/commit).
+
+---
+
+## Previous session (2026-07-18) — job-tracker sync
 
 **Context correction:** a prior Cowork session was reported to have left an uncommitted
 job-tracker sync, but nothing was ever committed and this was a fresh clone — that work was gone

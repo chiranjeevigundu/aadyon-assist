@@ -36,10 +36,42 @@ class Settings:
         # Explicit so a real deployment never silently discards uploads.
         self.storage_backend = os.getenv("STORAGE_BACKEND", "local").strip().lower()
         # --- Cloud Storage (S3-compatible) ---
+        # This layer is deliberately vendor-neutral: the SAME code talks to real AWS
+        # S3, a local emulator (Floci / LocalStack / MinIO), or any S3-compatible
+        # store. You migrate between them by changing config only — never code:
+        #   * Real AWS  : leave S3_ENDPOINT_URL empty, set S3_REGION + real creds.
+        #   * Emulator  : set S3_ENDPOINT_URL (e.g. http://host.docker.internal:4566).
+        # See docs/cloud-storage.md for copy-paste profiles.
         self.s3_endpoint_url = os.getenv("S3_ENDPOINT_URL", "").strip()
         self.s3_bucket = os.getenv("S3_BUCKET_NAME", "aadyon-assist").strip()
         self.s3_access_key_file = os.getenv("S3_ACCESS_KEY_FILE", "/run/secrets/s3_access_key")
         self.s3_secret_key_file = os.getenv("S3_SECRET_KEY_FILE", "/run/secrets/s3_secret_key")
+        # Region for SigV4 signing + bucket location. AWS needs the bucket's real
+        # region; emulators accept anything (us-east-1 is the convention). Honors the
+        # standard AWS_REGION / AWS_DEFAULT_REGION so ambient AWS config Just Works.
+        self.s3_region = (
+            os.getenv("S3_REGION")
+            or os.getenv("AWS_REGION")
+            or os.getenv("AWS_DEFAULT_REGION")
+            or "us-east-1"
+        ).strip()
+        # Addressing style. Real AWS uses virtual-host (bucket.s3.amazonaws.com);
+        # emulators generally need path-style (endpoint/bucket/key). "auto" (default)
+        # picks path-style whenever a custom endpoint is set, virtual-host otherwise —
+        # so both worlds work with no extra config. Force with true/false.
+        _paths = os.getenv("S3_FORCE_PATH_STYLE", "auto").strip().lower()
+        if _paths in ("1", "true", "yes", "on"):
+            self.s3_force_path_style = True
+        elif _paths in ("0", "false", "no", "off"):
+            self.s3_force_path_style = False
+        else:  # "auto" / anything else
+            self.s3_force_path_style = bool(self.s3_endpoint_url)
+        # Create the bucket on startup if it doesn't exist (idempotent). Convenient
+        # for emulator onboarding; set false on real AWS if the app's IAM role
+        # shouldn't hold CreateBucket (pre-provision the bucket via IaC instead).
+        self.s3_auto_create_bucket = (
+            os.getenv("S3_AUTO_CREATE_BUCKET", "true").strip().lower() == "true"
+        )
 
         # Public-facing URL of this app (used e.g. as the OpenRouter HTTP-Referer,
         # and to build email verify/reset links).
