@@ -1,10 +1,20 @@
-"""S3-compatible cloud storage client with a local disk fallback."""
+"""S3-compatible cloud storage client with a local disk fallback.
+
+Vendor-neutral by design: the same code path serves real AWS S3, a local emulator
+(Floci / LocalStack / MinIO), or any S3-compatible store. Which one is active is
+decided entirely by configuration (endpoint, region, addressing style, creds) — you
+migrate between clouds by editing `.env`, never this module. See docs/cloud-storage.md.
+"""
+import logging
 import shutil
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class StorageError(Exception):
@@ -29,16 +39,73 @@ def _backend() -> str:
 
 
 def get_s3_client():
+    """Build a boto3 S3 client from config — same call for AWS or any emulator.
+
+    Credentials: explicit S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY (or their secret
+    files) when present; otherwise boto3's default chain (env vars, shared config,
+    or an IAM instance/task role) so real-AWS deployments can run key-less. Returns
+    None only when neither static creds nor an emulator endpoint are configured —
+    i.e. there is nothing to talk to."""
     s = get_settings()
-    if not s.s3_access_key or not s.s3_secret_key:
+
+    creds = {}
+    if s.s3_access_key and s.s3_secret_key:
+        creds = {
+            "aws_access_key_id": s.s3_access_key,
+            "aws_secret_access_key": s.s3_secret_key,
+        }
+    elif not s.s3_endpoint_url:
+        # No static creds and no custom endpoint: on AWS we can still rely on an
+        # ambient role, but we can't distinguish that from "unconfigured" here, so
+        # fall back to the local-disk path rather than guessing.
         return None
 
+    addressing = "path" if s.s3_force_path_style else "virtual"
+    cfg = Config(s3={"addressing_style": addressing}, signature_version="s3v4")
     return boto3.client(
         "s3",
         endpoint_url=s.s3_endpoint_url if s.s3_endpoint_url else None,
-        aws_access_key_id=s.s3_access_key,
-        aws_secret_access_key=s.s3_secret_key,
+        region_name=s.s3_region,
+        config=cfg,
+        **creds,
     )
+
+
+def ensure_bucket(client=None) -> bool:
+    """Idempotently make sure the configured bucket exists. Returns True if the
+    bucket is usable afterwards, False if storage isn't in S3 mode / unreachable.
+
+    Safe to call repeatedly (on every startup). Handles the AWS quirk that
+    us-east-1 must NOT send a LocationConstraint while every other region must."""
+    s = get_settings()
+    client = client or get_s3_client()
+    if client is None:
+        return False
+    bucket = s.s3_bucket
+    try:
+        client.head_bucket(Bucket=bucket)
+        return True
+    except ClientError as e:
+        code = str(e.response.get("Error", {}).get("Code", ""))
+        if code == "403":
+            # Bucket exists but we lack HeadBucket permission — treat as present.
+            return True
+        if code not in ("404", "400", "NoSuchBucket"):
+            raise StorageError(f"Cannot reach bucket {bucket!r}: {e}") from e
+
+    # Bucket is absent — create it.
+    kwargs = {"Bucket": bucket}
+    if not s.s3_endpoint_url and s.s3_region and s.s3_region != "us-east-1":
+        kwargs["CreateBucketConfiguration"] = {"LocationConstraint": s.s3_region}
+    try:
+        client.create_bucket(**kwargs)
+        logger.info("Created storage bucket %r", bucket)
+        return True
+    except ClientError as e:
+        code = str(e.response.get("Error", {}).get("Code", ""))
+        if code in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+            return True  # raced with another worker — fine
+        raise StorageError(f"Failed to create bucket {bucket!r}: {e}") from e
 
 
 def _get_local_path(object_key: str):

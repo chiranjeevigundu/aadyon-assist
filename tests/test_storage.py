@@ -88,6 +88,112 @@ def test_local_fallback_rejects_traversal(monkeypatch, tmp_path):
         storage.download_fileobj("uid/missing.txt", io.BytesIO())
 
 
+def _s3_settings(**over):
+    """A settings stub with the full S3 knob set, overridable per-test."""
+    s = MagicMock()
+    s.storage_backend = "s3"
+    s.s3_access_key = over.get("s3_access_key", "test")
+    s.s3_secret_key = over.get("s3_secret_key", "test")
+    s.s3_bucket = over.get("s3_bucket", "aadyon-assist")
+    s.s3_endpoint_url = over.get("s3_endpoint_url", "http://host.docker.internal:4566")
+    s.s3_region = over.get("s3_region", "us-east-1")
+    s.s3_force_path_style = over.get("s3_force_path_style", True)
+    s.s3_auto_create_bucket = over.get("s3_auto_create_bucket", True)
+    return s
+
+
+def test_get_s3_client_is_config_driven(monkeypatch):
+    """The client is built from config: endpoint, region, and path-style addressing
+    all flow through — this is what makes AWS<->emulator a config-only switch."""
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _s3_settings())
+    client = storage.get_s3_client()
+    assert client is not None
+    assert client.meta.region_name == "us-east-1"
+    assert client.meta.endpoint_url == "http://host.docker.internal:4566"
+    # path-style requested -> botocore records it on the client config
+    assert client.meta.config.s3["addressing_style"] == "path"
+
+
+def test_get_s3_client_virtual_addressing_for_real_aws(monkeypatch):
+    from app.services import storage
+
+    monkeypatch.setattr(
+        "app.services.storage.get_settings",
+        lambda: _s3_settings(s3_endpoint_url="", s3_force_path_style=False, s3_region="eu-west-1"),
+    )
+    client = storage.get_s3_client()
+    assert client.meta.region_name == "eu-west-1"
+    assert client.meta.endpoint_url.endswith("amazonaws.com")
+    assert client.meta.config.s3["addressing_style"] == "virtual"
+
+
+def test_get_s3_client_none_when_unconfigured(monkeypatch):
+    """No static creds and no emulator endpoint -> None, so callers fall back to
+    local disk instead of guessing at ambient AWS credentials."""
+    from app.services import storage
+
+    monkeypatch.setattr(
+        "app.services.storage.get_settings",
+        lambda: _s3_settings(s3_access_key="", s3_secret_key="", s3_endpoint_url=""),
+    )
+    assert storage.get_s3_client() is None
+
+
+def test_ensure_bucket_noop_when_present(monkeypatch):
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _s3_settings())
+    client = MagicMock()
+    assert storage.ensure_bucket(client) is True
+    client.head_bucket.assert_called_once_with(Bucket="aadyon-assist")
+    client.create_bucket.assert_not_called()
+
+
+def test_ensure_bucket_creates_when_missing(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _s3_settings())
+    client = MagicMock()
+    client.head_bucket.side_effect = ClientError(
+        {"Error": {"Code": "404", "Message": "Not Found"}}, "HeadBucket"
+    )
+    assert storage.ensure_bucket(client) is True
+    # emulator endpoint set -> plain create, no LocationConstraint
+    client.create_bucket.assert_called_once_with(Bucket="aadyon-assist")
+
+
+def test_ensure_bucket_region_constraint_on_real_aws(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    from app.services import storage
+
+    monkeypatch.setattr(
+        "app.services.storage.get_settings",
+        lambda: _s3_settings(s3_endpoint_url="", s3_region="ap-south-1"),
+    )
+    client = MagicMock()
+    client.head_bucket.side_effect = ClientError(
+        {"Error": {"Code": "404"}}, "HeadBucket"
+    )
+    storage.ensure_bucket(client)
+    client.create_bucket.assert_called_once_with(
+        Bucket="aadyon-assist",
+        CreateBucketConfiguration={"LocationConstraint": "ap-south-1"},
+    )
+
+
+def test_ensure_bucket_false_without_client(monkeypatch):
+    from app.services import storage
+
+    monkeypatch.setattr("app.services.storage.get_s3_client", lambda: None)
+    monkeypatch.setattr("app.services.storage.get_settings", lambda: _s3_settings())
+    assert storage.ensure_bucket() is False
+
+
 def _backend_settings(backend, access_key="ci", secret_key="ci", tmp_path=None):
     s = MagicMock()
     s.storage_backend = backend
