@@ -8,11 +8,15 @@ not code changes.
 
 ## What's already cloud-ready
 
-- **Object storage is a config flip.** `STORAGE_BACKEND=s3` routes document uploads to any
-  S3-compatible store (AWS S3, GCS via its S3 interop endpoint, Cloudflare R2, MinIO). The
-  default `local` persists to `artifacts_dir/uploads`, which is correct for one host but
+- **Object storage is a config flip — real AWS or a local emulator, same code.**
+  `STORAGE_BACKEND=s3` routes document uploads to any S3-compatible store (AWS S3, a local
+  Floci/LocalStack/MinIO emulator, GCS S3-interop, Cloudflare R2). Region, addressing style,
+  and bucket bootstrap are all config (`S3_REGION`, `S3_FORCE_PATH_STYLE`,
+  `S3_AUTO_CREATE_BUCKET`); the single switch between AWS and an emulator is whether
+  `S3_ENDPOINT_URL` is set. Full guide with copy-paste profiles: **[cloud-storage.md](cloud-storage.md)**.
+  The default `local` persists to `artifacts_dir/uploads`, which is correct for one host but
   does **not** work across multiple API instances — switch to `s3` before scaling out.
-  Verified end-to-end against MinIO (upload + download round-trip through `services/storage.py`).
+  Verified end-to-end against both Floci and MinIO (round-trip through `services/storage.py`).
 - **Managed-Postgres-safe connection pooling.** `db/session.py` recycles connections the
   server has dropped and retries once on connection-level errors. Managed databases
   (RDS/Cloud SQL) reap idle connections aggressively; without this the app 500s intermittently.

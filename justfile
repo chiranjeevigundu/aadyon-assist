@@ -104,6 +104,12 @@ seed:
 import:
     docker compose exec api python -m app.jobs.import_entities
 
+# Provision the S3 bucket for the *current* config (real AWS or the Floci/LocalStack
+# emulator — whichever S3_ENDPOINT_URL points at). Idempotent; the api service also
+# does this on startup. Run after switching clouds or on a fresh emulator.
+storage-init:
+    docker compose exec api python -c "from app.services import storage; print('bucket ready:', storage.get_settings().s3_bucket) if storage.ensure_bucket() else print('storage not in s3 mode / unreachable')"
+
 # Run the unit test suite (DB-free)
 test:
     pytest
