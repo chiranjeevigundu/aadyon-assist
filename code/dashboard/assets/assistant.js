@@ -212,7 +212,7 @@ async function sendMessage() {
 										.insertAdjacentHTML("beforeend", metaHtml);
 								}
 								if (data.proposals && data.proposals.length > 0) {
-									const pText = `${data.proposals.length} proposal${data.proposals.length > 1 ? "s" : ""} awaiting your approval — review on the Agency console.`;
+									const pText = `${data.proposals.length} proposal${data.proposals.length > 1 ? "s" : ""} awaiting your approval — review in the Data tab (proposals).`;
 									const propHtml = `<div class="proposal">${pText}</div>`;
 									document
 										.getElementById(`container_${bubbleId}`)
@@ -314,7 +314,7 @@ async function uploadDocument(file) {
 		} catch (e) {}
 
 		document.getElementById(bubbleId).innerHTML =
-			"✓ Document uploaded successfully! It has been queued for analysis and will appear in your Agency tab for review shortly.";
+			"✓ Document uploaded successfully! It has been queued for analysis and will appear in the Data tab (document_extractions) for review shortly.";
 
 		// Automatically send a message so the assistant knows a document was just uploaded
 		setTimeout(() => {
