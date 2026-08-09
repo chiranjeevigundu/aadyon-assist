@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Net Worth · Aadyon Assist</title>
+<link rel="stylesheet" href="/static/assets/base.css">
+<style>
+  header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:13px}
+  nav[data-nav]{display:flex;gap:14px;flex-wrap:wrap}
+  nav[data-nav] a{color:var(--muted);font-size:13px;text-decoration:none}
+  nav[data-nav] a.active{color:var(--accent)}
+  main{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .card h2{margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .hero{display:flex;gap:32px;align-items:flex-end;flex-wrap:wrap}
+  .hero .nw{font-size:52px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+  .hero .nw.green{color:var(--green)} .hero .nw.red{color:var(--red)}
+  .hero .label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .stats{display:flex;gap:36px;flex-wrap:wrap}
+  .stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .v.up{color:var(--green)} .stat .v.down{color:var(--red)}
+  .stat .k{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--line);color:var(--fg)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:default}
+  .spark{width:100%;height:64px;display:block}
+  .muted{color:var(--muted)}
+  a{color:var(--accent)}
+  footer{max-width:1100px;margin:0 auto;padding:0 24px 32px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Net Worth</h1><div class="sub">assets − liabilities, tracked over time</div></div>
+  <nav data-nav></nav>
+</header>
+<main id="app"><div class="card">Loading…</div></main>
+<footer>Net worth = active assets − outstanding debts. Snapshot to record today's number in the trend.</footer>
+
+<script src="/static/assets/base.js"></script>
+<script src="/static/assets/networth.js"></script>
+</body>
+</html>

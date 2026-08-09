@@ -8,7 +8,45 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Latest session (2026-08-08) — cloud-agnostic object storage (AWS ⇄ local emulator)
+## Latest session (2026-08-09) — REFOCUS to a financial / net-worth app (in progress)
+
+**Directive:** restructure into a simple, open-source, financial/net-worth-focused app —
+"remove everything that is not financial", keep it usable by anyone. Scoping decisions
+(owner-confirmed): keep **multi-user auth (JWT+RLS)**; keep **ingestion integrations**
+(email, uploaded documents, the LLM assistant) but refocus them on *financial* data; add a
+proper **assets/net-worth** model. Remove: calendar, drive, the agentic "Agency" org
+(teams/agents/tasks/model_routes/agent_runs), and the "Digital Me" persona
+(applications/milestones/deadlines + persona profile fields). Default (owner may veto):
+drop briefing+ntfy; no rename yet.
+
+Executing as staged, independently-green PRs (matches the branch→PR→merge flow).
+
+**PR 1 — Net Worth core (DONE, this branch `claude/networth-core`, additive/no deletions):**
+- Migration `202608091200_networth_core.sql`: new per-user RLS tables `assets` (holdings:
+  cash/investment/retirement/property/vehicle/crypto/other) and `net_worth_snapshots`
+  (daily time series, unique per user+date). Additive — safe to `just migrate`.
+- `models/tables.py`: `assets` Entity (CRUD) + `net_worth_snapshots` Entity (create=False).
+- `services/networth.py`: `net_worth_summary()` (assets − debts, breakdown by kind, holdings/
+  debts lists, history) + `take_snapshot()` (idempotent per-day upsert).
+- `routers/networth.py`: `GET /api/networth`, `POST /api/networth/snapshot`; wired in main.py.
+- Dashboard: `networth.html` + `networth.js` (hero net worth, asset/liability split, breakdown,
+  trend sparkline, "Snapshot today"); `/networth` route; nav link (first item) in base.js.
+- Tests: `tests/test_networth.py` (+3). **Full suite 205 passed**, ruff clean.
+- **Verified live:** applied the additive migration to the running DB, rebuilt api; created
+  sample assets/debt → `GET /api/networth` returned 33000−3000=30000, snapshot recorded,
+  dashboard rendered correctly. All test rows cleaned up afterward.
+
+**Next PRs (not started):** PR2 remove Calendar+Drive; PR3 remove the Agency org (refactor
+`tools.py`/`assistant.py` off it — `_propose` currently writes to the `tasks` table, so a
+`proposals` store or repoint is needed to preserve human-in-the-loop); PR4 remove the
+Digital-Me persona + refactor `summary`/`system`/`tools` off `digital_me`/`dimensions`, trim
+`profile` to financial fields; PR5 refocus ingestion prompts + docs/README rewrite. Each needs
+a DROP migration (owner runs `just backup-now` before applying). `architecture.mermaid` /
+`services-architecture.mermaid` / `docs/architecture.md` will need updating at the end.
+
+---
+
+## Previous session (2026-08-08) — cloud-agnostic object storage (AWS ⇄ local emulator)
 
 **Goal:** the owner moved file storage from real AWS to the local **Floci** emulator
 (`D:\AI\HemoLab\floci-local-cloud` + `floci-ui`, S3 API on `:4566`). Requirement: aadyon must

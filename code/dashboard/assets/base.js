@@ -110,6 +110,7 @@ async function fetchApi(url, options = {}) {
 // Consistent top-right nav across pages. Any <nav data-nav> is filled with the
 // full link set, with the current page marked active. Keeps every page in sync.
 const NAV_LINKS = [
+	["/networth", "Net Worth"],
 	["/", "Digital Me"],
 	["/tracker", "Tracker"],
 	["/agency", "Agency"],

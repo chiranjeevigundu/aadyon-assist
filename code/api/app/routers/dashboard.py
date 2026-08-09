@@ -13,6 +13,12 @@ def home():
     return FileResponse(get_settings().dashboard_dir / "digital-me.html")
 
 
+@router.get("/networth")
+def networth_page():
+    """Net Worth — assets, liabilities, the running total, and the trend."""
+    return FileResponse(get_settings().dashboard_dir / "networth.html")
+
+
 @router.get("/tracker")
 def tracker():
     """The Phase 1 life-ops tracker (deadlines, debts, bills, subs, shifts)."""
