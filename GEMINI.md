@@ -1,8 +1,8 @@
 # GEMINI.md
 
 For Gemini-family agents (Google Antigravity, Gemini CLI, Jules). The operating manual for this
-repo lives in **[AGENTS.md](AGENTS.md)** — read it first, then **[HANDOFF.md](HANDOFF.md)** for
-the current state and **[ROADMAP.md](ROADMAP.md)** for what to work on next.
+repo lives in **[AGENTS.md](AGENTS.md)** — read it first, then **[HANDOFF.md](docs/HANDOFF.md)** for
+the current state and **[ROADMAP.md](docs/ROADMAP.md)** for what to work on next.
 
 Quick reminders (full detail in AGENTS.md):
 
@@ -15,4 +15,4 @@ Quick reminders (full detail in AGENTS.md):
 - Migrations: `just new-migration <name>` (yoyo, timestamped); apply with `just migrate`.
 - Verify with `just test` and `just lint`; for refactors the API parity check must pass.
 - End every session by updating HANDOFF.md (and ticking ROADMAP.md) in the same PR.
-- Architecture: [SYSTEM.md](SYSTEM.md). Quickstart: [README.md](README.md).
+- Architecture: [SYSTEM.md](docs/SYSTEM.md). Quickstart: [README.md](README.md).

@@ -31,7 +31,7 @@ Python) designed to move, unchanged, between a dev machine and an always-on serv
 
 ## 2. Context diagram
 
-See [docs/architecture.md](docs/architecture.md) for the rendered system + service diagrams
+See [docs/architecture.md](architecture.md) for the rendered system + service diagrams
 ([architecture.mermaid](architecture.mermaid) / [services-architecture.mermaid](services-architecture.mermaid)).
 
 ```mermaid
@@ -427,4 +427,4 @@ Set in `.env` (see `.env.example`); secrets preferred via files in `secrets/`.
 ---
 
 *This document describes the architecture as built. For the day-one quickstart see
-[README.md](README.md); for the Tailscale setup see [TAILSCALE.md](TAILSCALE.md).*
+[README.md](../README.md); for the Tailscale setup see [TAILSCALE.md](TAILSCALE.md).*

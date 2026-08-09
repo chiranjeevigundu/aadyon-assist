@@ -48,7 +48,7 @@ and usable by anyone. What remains and works today:
   make net worth aware of them (single reporting currency, FX at entry). Accept: mixed-currency
   assets roll up to one net-worth figure.
 - [ ] **Point the app at a cloud URL.** After hosting is chosen, document member onboarding and
-  set the public/Tailscale backend. See [docs/CLOUD.md](docs/CLOUD.md) for the managed-cloud path
+  set the public/Tailscale backend. See [docs/CLOUD.md](CLOUD.md) for the managed-cloud path
   (RDS/Cloud SQL + S3/GCS; connection pooling already hardened; secrets via the platform manager).
 
 ## Owner-only ops (not agent tasks)
