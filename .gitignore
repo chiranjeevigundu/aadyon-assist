@@ -44,3 +44,6 @@ Thumbs.db
 _healthcheck.bat
 _healthcheck.out.txt
 start-stack.bat
+
+# Removed app — ignore any stray Expo working files
+mobile/
