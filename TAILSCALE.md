@@ -20,7 +20,7 @@ public internet. Only devices signed into *your* Tailscale account can connect.
 ### 2. On your phone / other devices
 1. Install the **Tailscale** app and sign in with the **same account**.
 2. Open the `https://<host-name>.<your-tailnet>.ts.net` URL from step 1 in any browser.
-   That's it — you get the full Digital Me / Tracker / Data / Agency app.
+   That's it — you get the full Net Worth / Tracker / Assistant / Data app.
 
 ## Day to day
 - The host must be **on and awake** to serve. The compose services restart automatically

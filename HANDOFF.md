@@ -8,7 +8,29 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — PRUNE non-financial domains (branch `claude/prune-nonfinancial`)
+## Latest session (2026-08-09) — DOCS refresh for the financial refocus (branch `claude/docs-refocus`)
+
+Docs-only pass (no code touched) so the repo reads cleanly for open-source after the prune:
+- **README.md** — full rewrite: finance / net-worth framing (Net Worth home, Tracker, Assistant,
+  ingestion, proposals), updated stack (6 services, no agency/mobile) + layout.
+- **architecture.mermaid / services-architecture.mermaid / docs/architecture.md** — regenerated
+  for the pruned architecture (no agency worker / calendar / drive / mobile / digital-me); all
+  three render-verified with mermaid-cli.
+- **AGENTS.md** — updated the "what this is", golden rules, repo map, deploy command, and the
+  "adjust tools/routing" note (agency → config routing + proposals).
+- **ROADMAP.md** — rewritten forward-looking (proposals UI, freshness signals, auto-snapshot,
+  currency); a "Where we are" note records what was removed.
+- **SYSTEM.md** — reworked: intro/principles, context diagram, service topology (7→6), app
+  structure, §5.1 Net worth (was Digital Me), §5.4 Assistant & proposals (was Agentic org), data
+  model + API reference tables, security action-boundary, ops runbook.
+- **TAILSCALE.md** — nav name fix.
+
+**This completes the refocus docs.** Remaining stale ref is intentional (SYSTEM.md notes old
+migrations remain in the ledger as history). CI unaffected (docs only).
+
+---
+
+## Earlier session (2026-08-09) — PRUNE non-financial domains (branch `claude/prune-nonfinancial`)
 
 Removed the bulk of the non-financial surface (206 → ~164 tracked files, API 158 → 108 ops):
 - **Deleted:** the `mobile/` Expo app (21 files); Calendar + Drive connectors (services,
