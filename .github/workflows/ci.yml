@@ -79,11 +79,10 @@ jobs:
           curl -fsS -H "$AUTH" "$B/api/networth"     | grep -q '"net_worth"'
           curl -fsS -H "$AUTH" -X POST "$B/api/networth/snapshot" >/dev/null
           curl -fsS -H "$AUTH" "$B/api/entities"    >/dev/null
-          curl -fsS -H "$AUTH" "$B/api/agency/org"   | grep -q 'Aadyon CEO'
-          curl -fsS -H "$AUTH" "$B/api/agency/health" >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/assets"      >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/debts"       >/dev/null
           curl -fsS -H "$AUTH" "$B/api/summary"      >/dev/null
           curl -fsS -H "$AUTH" "$B/api/email/extractions?status=pending" >/dev/null
-          curl -fsS -H "$AUTH" "$B/api/deadlines"    >/dev/null
           curl -fsS -H "$AUTH" "$B/api/briefing"     >/dev/null
           curl -fsS -H "$AUTH" "$B/api/assistant/conversations" >/dev/null
           echo "Smoke test passed."

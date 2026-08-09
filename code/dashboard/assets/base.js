@@ -112,7 +112,6 @@ async function fetchApi(url, options = {}) {
 const NAV_LINKS = [
 	["/", "Net Worth"],
 	["/tracker", "Tracker"],
-	["/agency", "Agency"],
 	["/assistant", "Assistant"],
 	["/data", "Data"],
 	["/accounts", "Accounts"],

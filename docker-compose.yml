@@ -16,7 +16,7 @@ services:
       retries: 10
 
   # Applies pending SQL migrations (yoyo ledger in the _yoyo_* tables), then exits.
-  # api/briefing/agency wait for it to complete successfully. `just migrate` re-runs it.
+  # api/briefing wait for it to complete successfully. `just migrate` re-runs it.
   migrate:
     build:
       context: ./code
@@ -94,33 +94,6 @@ services:
       - ./artifacts:/srv/artifacts
       - ./data/exports:/srv/backups
     command: ["python", "-m", "app.jobs.briefing_loop"]
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-
-  # Agentic worker: drains the task queue (CEO -> teams) using OpenRouter / Ollama.
-  agency:
-    build:
-      context: ./code
-      dockerfile: api/Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DB_HOST: db
-      DB_USER: aadyon_app     # restricted role RLS applies to (not the bootstrap superuser)
-      DB_PASSWORD_FILE: /run/secrets/db_password
-      ARTIFACTS_DIR: /srv/artifacts
-    secrets:
-      - db_password
-      - s3_access_key
-      - s3_secret_key
-    volumes:
-      - ./artifacts:/srv/artifacts
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # reach local Ollama on the host
-    command: ["python", "-m", "app.jobs.agency_loop"]
     depends_on:
       db:
         condition: service_healthy
