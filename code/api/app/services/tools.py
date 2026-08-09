@@ -1,11 +1,11 @@
-"""Agent tools — the ways an agent (org worker or the personal assistant) can act.
+"""Assistant tools — the ways the personal finance assistant can act.
 
 Two boundaries, matching the golden rules:
-- READ tools (`get_snapshot`) run automatically.
+- READ tools (`get_snapshot`, `get_transactions`, `read_document`, …) run automatically.
 - INTERNAL WRITE tools (`create_/update_/delete_*`, `update_profile`) change the
-  user's OWN records directly — authorized, low-stakes, and RLS-scoped to them.
+  user's OWN financial records directly — authorized, low-stakes, RLS-scoped to them.
 - EXTERNAL side effects (`propose_action`) do NOT execute: they queue a proposal a
-  human approves (money, email, filings). `delegate` only creates internal subtasks.
+  human approves (moving money, sending email, paying a bill).
 
 Write-tool schemas are generated from the CRUD column whitelists in models.tables
 (one source of truth) so they can never touch a non-writable column.
@@ -19,8 +19,8 @@ from app.services.networth import net_worth_summary
 _COLS = {e.table: list(e.columns) for e in ENTITIES}
 
 # Tables the personal assistant may create/update/delete directly (the user's own
-# life-ops records). Profile is handled separately as a per-user singleton upsert.
-_WRITE_TABLES = ["deadlines", "bills", "debts", "subscriptions", "milestones"]
+# financial records). Profile is handled separately as a per-user singleton upsert.
+_WRITE_TABLES = ["deadlines", "bills", "debts", "subscriptions", "assets"]
 
 # Minimum fields the model must provide to make a useful new row.
 _REQUIRED = {
@@ -28,7 +28,7 @@ _REQUIRED = {
     "bills": ["name", "amount"],
     "debts": ["name", "balance", "apr"],
     "subscriptions": ["name", "amount"],
-    "milestones": ["title"],
+    "assets": ["name", "value"],
 }
 
 _NUMERIC_HINTS = ("amount", "balance", "apr", "rate", "pay", "salary", "income",
@@ -60,14 +60,6 @@ _SCHEMAS: dict = {
             "description": "Get the user's financial snapshot: net worth (total assets − total "
                            "liabilities), assets broken down by kind, the individual holdings and "
                            "debts, and the net-worth history. Call this first for real numbers.",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    "get_calendar": {
-        "type": "function",
-        "function": {
-            "name": "get_calendar",
-            "description": "Get upcoming calendar events and pending calendar extractions.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
@@ -107,16 +99,6 @@ _SCHEMAS: dict = {
             },
         },
     },
-    "get_tasks": {
-        "type": "function",
-        "function": {
-            "name": "get_tasks",
-            "description": "List the user's recently delegated tasks with their status and result, "
-                           "so you can report back what the agent org did. Call this after delegating "
-                           "or when the user asks what happened with a delegated task.",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
     "remember": {
         "type": "function",
         "function": {
@@ -128,23 +110,6 @@ _SCHEMAS: dict = {
                 "type": "object",
                 "properties": {"content": {"type": "string", "description": "the fact to remember"}},
                 "required": ["content"],
-            },
-        },
-    },
-    "delegate": {
-        "type": "function",
-        "function": {
-            "name": "delegate",
-            "description": "Delegate a concrete sub-task to a team. Creates a queued task "
-                           "assigned to that team's lead.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "team": {"type": "string", "enum": ["Finance", "Career", "Growth"]},
-                    "title": {"type": "string"},
-                    "description": {"type": "string"},
-                },
-                "required": ["team", "title"],
             },
         },
     },
@@ -237,14 +202,13 @@ def _build_write_schemas() -> None:
 
 _build_write_schemas()
 
-# Which tools each caller-type may use.
+# Which tools the assistant may use: read, write the user's own financial data, and
+# propose external actions (which only queue for approval, never execute).
 _WRITE_TOOL_NAMES = ["update_profile"] + list(_TOOL_TABLE.keys())
 _BY_TYPE = {
-    "ceo": ["get_snapshot", "delegate"],
-    "team_lead": ["get_snapshot", "propose_action"],
-    "employee": ["get_snapshot", "propose_action"],
-    # The personal assistant: read, write the user's own data, and propose externals.
-    "assistant": ["get_snapshot", "get_calendar", "get_transactions", "get_document_extractions", "get_recent_documents", "read_document", "get_tasks", "remember", "delegate"] + _WRITE_TOOL_NAMES + ["propose_action"],
+    "assistant": ["get_snapshot", "get_transactions", "get_document_extractions",
+                  "get_recent_documents", "read_document", "remember"]
+    + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
@@ -269,8 +233,6 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
 def _dispatch(name: str, args: dict, ctx: dict) -> dict:
     if name == "get_snapshot":
         return net_worth_summary()
-    if name == "get_calendar":
-        return _get_calendar(args)
     if name == "get_transactions":
         return _get_transactions(args)
     if name == "get_document_extractions":
@@ -279,10 +241,6 @@ def _dispatch(name: str, args: dict, ctx: dict) -> dict:
         return _get_recent_documents(args)
     if name == "read_document":
         return _read_document(args)
-    if name == "delegate":
-        return _delegate(args, ctx)
-    if name == "get_tasks":
-        return _get_tasks_status(args)
     if name == "remember":
         return _remember(args)
     if name == "propose_action":
@@ -313,14 +271,6 @@ def _create(table: str, args: dict) -> dict:
     missing = [c for c in _REQUIRED.get(table, []) if c not in data]
     if missing:
         return {"error": f"missing required fields: {missing}"}
-    # A goal set via update_profile already auto-creates a tracking milestone; the
-    # model sometimes ALSO calls create_milestone for it. Dedupe open milestones by
-    # title so the same goal can't land on the Goal card twice.
-    if table == "milestones" and data.get("title"):
-        dup = query("SELECT id FROM milestones WHERE title = %s AND NOT achieved",
-                    (data["title"],))
-        if dup:
-            return {"ok": True, "action": "milestone already tracked", "row": {"id": dup[0]["id"]}}
     data["user_id"] = current_user_id()
     fields = ", ".join(data.keys())
     ph = ", ".join(["%s"] * len(data))
@@ -356,27 +306,6 @@ def _delete(table: str, args: dict) -> dict:
     return {"ok": bool(rows), "action": f"deleted {table}" if rows else "not found"}
 
 
-def _track_goal_milestone(data: dict) -> bool:
-    """The Goal dimension scores ONLY milestones (avg progress_pct of open rows);
-    profile.goal_title/goal_target_date are display labels. Mirror a stated goal
-    into a milestone (deduped by open title) so it shows up and can be scored."""
-    title = data.get("goal_title")
-    if not title:
-        return False
-    existing = query("SELECT id FROM milestones WHERE title = %s AND NOT achieved", (title,))
-    if existing:
-        if data.get("goal_target_date"):
-            query("UPDATE milestones SET milestone_date = %s WHERE id = %s",
-                  (data["goal_target_date"], existing[0]["id"]), commit=True)
-        return False
-    query(
-        "INSERT INTO milestones (user_id, title, category, milestone_date, progress_pct) "
-        "VALUES (%s, %s, 'goal', %s, 0)",
-        (current_user_id(), title, data.get("goal_target_date")), commit=True,
-    )
-    return True
-
-
 def _update_profile(args: dict) -> dict:
     data = _clean(args, _COLS["profile"])
     if not data:
@@ -395,20 +324,7 @@ def _update_profile(args: dict) -> dict:
         ph = ", ".join(["%s"] * len(data))
         query(f"INSERT INTO profile ({fields}) VALUES ({ph})", tuple(data.values()), commit=True)
         action = "created profile"
-    if _track_goal_milestone(data):
-        action += " + created a milestone to track the goal (progress starts at 0%)"
     return {"ok": True, "action": action}
-
-
-def _get_tasks_status(args: dict) -> dict:
-    """Recent tasks + their agency-produced status/result, so the assistant can
-    report back what the org actually did. RLS already scopes these to the user;
-    delegated tasks are created by the CEO agent, so don't filter by created_by."""
-    rows = query(
-        "SELECT title, status, result, error, updated_at FROM tasks "
-        "ORDER BY updated_at DESC LIMIT 20"
-    )
-    return {"tasks": rows}
 
 
 def _remember(args: dict) -> dict:
@@ -430,15 +346,6 @@ def recent_memories(limit: int = 20) -> list[str]:
         "SELECT content FROM memory_chunks ORDER BY created_at DESC LIMIT %s", (limit,)
     )
     return [r["content"] for r in rows]
-
-
-def _get_calendar(args: dict) -> dict:
-    rows = query(
-        "SELECT event_date, summary, status FROM calendar_extractions "
-        "WHERE event_date > now() - interval '1 day' "
-        "ORDER BY event_date ASC LIMIT 50"
-    )
-    return {"upcoming_events": rows}
 
 
 def _get_transactions(args: dict) -> dict:
@@ -501,39 +408,14 @@ def _read_document(args: dict) -> dict:
         return {"error": f"could not read document text: {e}"}
 
 
-# --------------------------------------------------------------------------- org handlers
-def _delegate(args: dict, ctx: dict) -> dict:
-    team = args.get("team")
-    rows = query("SELECT id FROM teams WHERE name = %s", (team,))
-    if not rows:
-        return {"error": f"no team named {team}"}
-    team_id = rows[0]["id"]
-    lead = query(
-        "SELECT id FROM agents WHERE team_id = %s AND agent_type = 'team_lead' "
-        "AND active ORDER BY created_at LIMIT 1",
-        (team_id,),
-    )
-    lead_id = lead[0]["id"] if lead else None
-    created = query(
-        "INSERT INTO tasks (user_id, title, description, kind, team_id, agent_id, parent_id, "
-        "status, created_by) VALUES (%s,%s,%s,'task',%s,%s,%s,'queued','ceo') RETURNING id",
-        (current_user_id(), args.get("title"), args.get("description"), team_id, lead_id,
-         ctx.get("task_id")),
-        commit=True,
-    )
-    return {"delegated_to": team, "task_id": str(created[0]["id"])}
-
-
+# --------------------------------------------------------------------------- proposals
 def _propose(args: dict, ctx: dict) -> dict:
-    detail = args.get("detail", "")
-    if args.get("category"):
-        detail = f"[{args['category']}] {detail}"
+    """Queue a real-world external action for the user's approval. Never executes."""
     created = query(
-        "INSERT INTO tasks (user_id, title, description, kind, team_id, parent_id, status, "
-        "requires_approval, created_by) VALUES (%s,%s,%s,'proposal',%s,%s,"
-        "'awaiting_approval', true, 'agent') RETURNING id",
-        (current_user_id(), args.get("title"), detail, ctx.get("team_id"), ctx.get("task_id")),
+        "INSERT INTO proposals (user_id, title, detail, category, status) "
+        "VALUES (%s, %s, %s, %s, 'pending') RETURNING id",
+        (current_user_id(), args.get("title"), args.get("detail", ""), args.get("category")),
         commit=True,
     )
-    return {"proposal_id": str(created[0]["id"]), "status": "awaiting_approval",
+    return {"proposal_id": str(created[0]["id"]), "status": "pending",
             "note": "Queued for your approval — nothing executed."}

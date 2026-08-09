@@ -2,7 +2,7 @@
 
 Multi-user support. Passwords are bcrypt-hashed (passlib); sessions are stateless
 JWT bearer tokens signed with config.jwt_secret. `users` is not under RLS, so it is
-read/written via query_unscoped; new users get their own agent org via seed_org().
+read/written via query_unscoped; new users get a starter profile row on signup.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -127,11 +127,9 @@ def create_user(email: str, password: str, display_name: str | None = None) -> d
         commit=True,
     )
     user = rows[0]
-    # Seed this user's own org (CEO + teams + leads). The scoped query sets the GUC
-    # to the new user, so the RLS WITH CHECK on teams/agents inserts passes.
+    # Scope subsequent inserts to the new user so RLS WITH CHECK passes.
     set_current_user(user["id"])
-    query("SELECT seed_org(%s)", (str(user["id"]),), commit=True)
-    # Seed the user's initial Digital Me profile with their display name.
+    # Seed the user's initial profile with their display name.
     d_name = display_name or email.split("@")[0]
     query("INSERT INTO profile (user_id, full_name) VALUES (%s, %s)", (str(user["id"]), d_name), commit=True)
     return user

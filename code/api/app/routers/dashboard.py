@@ -25,12 +25,6 @@ def data_admin():
     return FileResponse(get_settings().dashboard_dir / "data.html")
 
 
-@router.get("/agency")
-def agency_page():
-    """The agentic org — CEO/teams/employees, task queue, approvals, model routing."""
-    return FileResponse(get_settings().dashboard_dir / "agency.html")
-
-
 @router.get("/assistant")
 def assistant_page():
     """Personal Assistant (Aadyon Assist) chat interface."""

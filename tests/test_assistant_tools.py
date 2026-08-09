@@ -132,63 +132,6 @@ def test_dispatch_returns_tool_exceptions_as_errors(monkeypatch):
     assert "error" in out and "invalid input" in out["error"]
 
 
-def test_setting_a_goal_mirrors_it_into_a_milestone(monkeypatch):
-    # goal_title/goal_target_date are display labels; the Goal score only reads
-    # milestones — a stated goal must create one (at 0%) to show up at all.
-    set_current_user("u1")
-
-    def q(sql, p=(), c=False):
-        s = sql.strip()
-        if s.startswith("SELECT id FROM profile"):
-            return [{"id": "p1"}]
-        if s.startswith("SELECT id FROM milestones"):
-            return []                      # not tracked yet
-        return []
-    fake = patch_query(monkeypatch, "app.services.tools", q)
-    out = tools.dispatch("update_profile",
-                         {"goal_title": "become debt free by age 30",
-                          "goal_target_date": "2029-12-15"}, {})
-    assert out["ok"] is True and "milestone" in out["action"]
-    ins = next(c for c in fake.calls if "INSERT INTO milestones" in c[0])
-    assert ins[1][1] == "become debt free by age 30" and ins[1][2] == "2029-12-15"
-
-
-def test_goal_milestone_not_duplicated(monkeypatch):
-    set_current_user("u1")
-
-    def q(sql, p=(), c=False):
-        s = sql.strip()
-        if s.startswith("SELECT id FROM profile"):
-            return [{"id": "p1"}]
-        if s.startswith("SELECT id FROM milestones"):
-            return [{"id": "m1"}]          # goal already tracked
-        return []
-    fake = patch_query(monkeypatch, "app.services.tools", q)
-    out = tools.dispatch("update_profile",
-                         {"goal_title": "become debt free by age 30",
-                          "goal_target_date": "2030-01-01"}, {})
-    assert out["ok"] is True and "milestone" not in out["action"]
-    assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
-    upd = next(c for c in fake.calls if "UPDATE milestones SET milestone_date" in c[0])
-    assert upd[1] == ("2030-01-01", "m1")  # target date refresh still lands
-
-
-def test_create_milestone_dedupes_open_title(monkeypatch):
-    # A goal auto-mirrored by update_profile shouldn't be duplicated when the model
-    # also calls create_milestone for it — dedupe open milestones by title.
-    set_current_user("u1")
-
-    def q(sql, p=(), c=False):
-        if "SELECT id FROM milestones" in sql:
-            return [{"id": "m-existing"}]
-        return [{"id": "m-new"}]
-    fake = patch_query(monkeypatch, "app.services.tools", q)
-    out = tools.dispatch("create_milestone",
-                         {"title": "Become debt free by age 30", "category": "goal"}, {})
-    assert out["ok"] is True and out["row"]["id"] == "m-existing"
-    assert not any("INSERT INTO milestones" in c[0] for c in fake.calls)
-
-
 def test_remember_persists_a_fact(monkeypatch):
     set_current_user("u1")
     fake = patch_query(monkeypatch, "app.services.tools", lambda sql, p=(), c=False: [])
@@ -209,13 +152,3 @@ def test_recent_memories_returns_contents(monkeypatch):
     patch_query(monkeypatch, "app.services.tools",
                 lambda sql, p=(), c=False: [{"content": "a"}, {"content": "b"}])
     assert tools.recent_memories() == ["a", "b"]
-
-
-def test_get_tasks_lists_delegated_work(monkeypatch):
-    set_current_user("u1")
-    patch_query(monkeypatch, "app.services.tools",
-                lambda sql, p=(), c=False: [{"title": "audit subs", "status": "done",
-                                             "result": "3 found", "error": None,
-                                             "updated_at": "2026-07-04"}])
-    out = tools.dispatch("get_tasks", {}, {})
-    assert out["tasks"][0]["status"] == "done" and out["tasks"][0]["result"] == "3 found"

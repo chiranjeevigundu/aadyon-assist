@@ -13,7 +13,8 @@ from app.db.session import current_user_id, query
 from app.models.tables import ENTITIES, Entity
 
 # Global (non-per-user) tables have no user_id column and no RLS policy.
-GLOBAL_TABLES = {"model_routes"}
+# Every current entity is per-user; kept for the mechanism.
+GLOBAL_TABLES: set[str] = set()
 
 
 def make_router(entity: Entity) -> APIRouter:
