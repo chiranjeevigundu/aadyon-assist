@@ -1,11 +1,11 @@
 flowchart TB
-%% Aadyon Assist — high-level system map.
+%% Aadyon Assist — high-level system map (personal finance / net-worth app).
 %% Companion (service/container detail): services-architecture.mermaid
 %% Edit in mermaid.live / VS Code / draw.io; renders on GitHub in a ```mermaid fence.
 
   subgraph CLIENTS[" CLIENTS "]
     direction LR
-    you["You — browser<br/>dashboards"]
+    you["You — browser<br/>Net Worth · Tracker · Assistant"]
     phone["iPhone<br/>ntfy app"]
     dev["Dev machine<br/>localhost:8000"]
   end
@@ -14,7 +14,6 @@ flowchart TB
     api["api — FastAPI<br/>REST + dashboards · JWT"]
     db[("db — Postgres 16 + pgvector<br/>RLS per-user isolation")]
     briefing["briefing<br/>daily digest → md"]
-    agency["agency<br/>queue worker · CEO→teams"]
     migrate["migrate<br/>yoyo DDL · one-shot"]
     backup["backup<br/>nightly pg_dump"]
     ntfy["ntfy<br/>self-hosted push"]
@@ -44,25 +43,21 @@ flowchart TB
 
   api -->|"scoped query"| db
   briefing --> db
-  agency -->|"drains queue"| db
   migrate -->|"apply migrations"| db
   backup -->|"pg_dump"| db
-  briefing -->|"morning digest"| ntfy
+  briefing -->|"bills + net-worth digest"| ntfy
 
-  api -->|"upload / download"| storage
-  agency --> storage
-  briefing --> storage
+  api -->|"upload / download<br/>statements + receipts"| storage
   storage ==>|"S3_ENDPOINT_URL set"| emu
   storage ==>|"unset → real AWS"| aws
 
-  agency -->|"routed inference"| openrouter
-  agency --> ollama
-  api --> openrouter
+  api -->|"assistant · statement extract"| openrouter
+  api --> ollama
   email -->|"read-only · LLM extract → review"| api
   api -->|"verify / reset mail"| resend
 
   secrets -.-> api
-  secrets -.-> agency
+  secrets -.-> briefing
   secrets -.-> db
 
   classDef store fill:#e6f6f4,stroke:#0e8f9b,color:#0a5b62,stroke-width:1.5px;
@@ -71,7 +66,7 @@ flowchart TB
   class storage,emu,aws store;
   class db dbc;
   class secrets sec;
-  linkStyle 13,14 stroke:#0e8f9b,stroke-width:2.5px;
+  linkStyle 10,11 stroke:#0e8f9b,stroke-width:2.5px;
 
 %% Legend: teal = portable storage seam · thick teal = AWS/emulator switch
 %%         dashed = secrets & push · db is the shared per-user store (RLS)
