@@ -45,8 +45,8 @@ then `docker compose up -d --force-recreate api briefing agency`. See `docs/clou
 
 **Note:** the Floci emulator is an external dependency for S3 mode but lives in a *separate*
 repo (`D:\AI\HemoLab\floci-ui`, running on `:4566`); aadyon reaches it at
-`host.docker.internal:4566`. Nothing here starts it. These changes are **uncommitted** on
-`main` (owner to review/commit).
+`host.docker.internal:4566`. Nothing here starts it. **Merged to `main` via PR #57**
+(merge commit `6cbded2`).
 
 ---
 
