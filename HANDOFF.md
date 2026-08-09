@@ -36,6 +36,24 @@ Executing as staged, independently-green PRs (matches the branch→PR→merge fl
   sample assets/debt → `GET /api/networth` returned 33000−3000=30000, snapshot recorded,
   dashboard rendered correctly. All test rows cleaned up afterward.
 
+**PR 1b — remove visa + the "Digital Me" persona; Net Worth is now the home (DONE, same
+branch `claude/networth-core`, on top of PR 1):**
+- Owner directives: "remove visa (not applicable to every user)" and "Digital Me no longer
+  valid, keep an appropriate dashboard name".
+- Removed visa: dropped `profile.visa_type/visa_status/work_auth_until` (migration
+  `202608091400_remove_visa_columns.sql`), the `visa_dimension`, and all UI/tool/prompt refs.
+- Removed the persona layer: deleted `services/digital_me.py` + `services/dimensions.py`,
+  `dashboard/digital-me.html` + `digital-me.js`, and `GET /api/digital-me`. Refactored the
+  callers off it: `tools.get_snapshot` now returns `net_worth_summary()`; `briefing.py` drops
+  the Digital-Me headline; `system.py` drops the endpoint; the assistant system prompt is now
+  finance-framed. Deleted `test_dimensions.py`/`test_digital_me.py`; fixed
+  `test_imports`/`test_tools`/`test_assistant_tools`.
+- **Net Worth is the front door** (`/` → networth.html); nav drops "Digital Me", "Net Worth"
+  is home. Full suite **196 passed**, ruff clean.
+- **Verified live** (backup taken first, migration applied): home = Net Worth page,
+  `/api/digital-me` → 404, `/api/profile` has no visa fields, assistant `get_snapshot` reports
+  net worth. Note: this branch now bundles PR1 (additive net worth) + PR1b (persona removal).
+
 **Next PRs (not started):** PR2 remove Calendar+Drive; PR3 remove the Agency org (refactor
 `tools.py`/`assistant.py` off it — `_propose` currently writes to the `tasks` table, so a
 `proposals` store or repoint is needed to preserve human-in-the-loop); PR4 remove the

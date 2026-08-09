@@ -2,7 +2,6 @@
 from datetime import date
 
 from app.db.session import query
-from app.services.digital_me import digital_me
 
 HORIZON_DAYS = 14
 
@@ -39,30 +38,6 @@ def build_briefing(today: date | None = None) -> str:
     )
 
     L: list[str] = [f"# Aadyon Assist — Briefing for {today:%A, %B %d, %Y}", ""]
-
-    # Digital Me one-liner: overall score + days to 30.
-    try:
-        dm = digital_me()
-        ov = dm.get("overall", {})
-        life = dm.get("life", {})
-        dims = dm.get("dimensions", {})
-        bits = []
-        if ov:
-            bits.append(f"**Digital Me: {ov.get('score')}/100** ({ov.get('band')})")
-        if life.get("days_to_30") is not None:
-            bits.append(f"{life['days_to_30']:,} days to 30")
-        if dims:
-            bits.append(
-                "fin {}/visa {}/career {}/goal {}".format(
-                    dims["financial"]["score"], dims["visa"]["score"],
-                    dims["career"]["score"], dims["goal"]["score"],
-                )
-            )
-        if bits:
-            L.append(" · ".join(bits))
-            L.append("")
-    except Exception:  # noqa: BLE001 — never let the headline break the briefing
-        pass
 
     L.append(f"## Deadlines (next {HORIZON_DAYS} days)")
     if due_soon:
