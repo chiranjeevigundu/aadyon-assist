@@ -106,6 +106,22 @@ ENTITIES: list[Entity] = [
          "web_view_link": str, "size_bytes": int, "status": str},
         order_by="updated_at DESC",
     ),
+    # --- Net worth: assets (holdings) & snapshots ---
+    # Liabilities are the existing `debts`; assets − debts = net worth. Snapshots are
+    # a per-day time series written by the /api/networth/snapshot route (create=False).
+    Entity(
+        "assets",
+        {"name": str, "kind": str, "institution": str, "value": float, "currency": str,
+         "as_of": date, "active": bool, "notes": str},
+        order_by="value DESC",
+    ),
+    Entity(
+        "net_worth_snapshots",
+        {"snapshot_date": date, "total_assets": float, "total_liabilities": float,
+         "net_worth": float, "currency": str},
+        order_by="snapshot_date DESC",
+        create=False,  # written by the snapshot route, not the generic POST
+    ),
     # --- Bank accounts & transactions ---
     Entity(
         "bank_accounts",
