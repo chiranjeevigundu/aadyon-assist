@@ -30,7 +30,7 @@ DEFAULT_ENDPOINTS = [
     "/api/networth",
     "/api/entities",
     "/api/summary",
-    "/api/agency/org",
+    "/api/debts",
 ]
 DEFAULT_BASELINE = "scripts/parity-baseline.json"
 

@@ -74,17 +74,16 @@ def build_briefing(today: date | None = None) -> str:
     L.append(f"- Interest accruing: **${float(totals['int_mo']):,.2f}/month**")
     L.append("")
 
-    # Agent proposals waiting on you (the org files these; you approve).
+    # Proposals waiting on you (the assistant files these; you approve).
     try:
         props = query(
-            "SELECT title FROM tasks WHERE status = 'awaiting_approval' "
+            "SELECT title FROM proposals WHERE status = 'pending' "
             "ORDER BY created_at DESC LIMIT 5"
         )
         if props:
-            L.append(f"## Agent proposals awaiting approval ({len(props)})")
+            L.append(f"## Proposals awaiting approval ({len(props)})")
             for p in props:
                 L.append(f"- {p['title']}")
-            L.append("- Review/approve in the Agency tab.")
             L.append("")
     except Exception:  # noqa: BLE001
         pass
