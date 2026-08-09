@@ -11,9 +11,9 @@ Usage:
     # 2) after the refactor + redeploy, compare (exit code 1 on any mismatch)
     python scripts/verify.py --base http://localhost:8000
 
-Note: /api/digital-me and /api/summary include date-derived values (days alive,
-as-of date), so they shift day to day. Re-baseline on the same day you compare,
-or pass --endpoints to limit the check to stable ones (e.g. /api/entities).
+Note: /api/summary includes date-derived values (due-date deltas), so it can shift
+day to day. Re-baseline on the same day you compare, or pass --endpoints to limit
+the check to stable ones (e.g. /api/entities).
 
 Multi-user: the API now requires a bearer token, and the data endpoints are
 per-user. Pass --token <jwt> (from POST /api/auth/login for a fixed "verify" user)
@@ -27,7 +27,7 @@ import sys
 import urllib.request
 
 DEFAULT_ENDPOINTS = [
-    "/api/digital-me",
+    "/api/networth",
     "/api/entities",
     "/api/summary",
     "/api/agency/org",
