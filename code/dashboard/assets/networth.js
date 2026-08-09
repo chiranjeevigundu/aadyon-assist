@@ -35,10 +35,13 @@ function sparkline(history) {
 }
 
 function kindRows(byKind, totalAssets) {
-	if (!byKind.length) return '<tr><td colspan="3" class="muted">No assets yet.</td></tr>';
+	if (!byKind.length)
+		return '<tr><td colspan="3" class="muted">No assets yet.</td></tr>';
 	return byKind
 		.map((k) => {
-			const pct = totalAssets ? Math.round((Number(k.total) / totalAssets) * 100) : 0;
+			const pct = totalAssets
+				? Math.round((Number(k.total) / totalAssets) * 100)
+				: 0;
 			return `<tr><td>${esc(KIND_LABEL[k.kind] || k.kind)}</td>
 				<td class="num">${money(k.total)}</td>
 				<td class="num">${pct}%</td></tr>`;
@@ -47,10 +50,13 @@ function kindRows(byKind, totalAssets) {
 }
 
 function assetRows(assets) {
-	if (!assets.length) return '<tr><td colspan="3" class="muted">No assets yet — add one on the Data page.</td></tr>';
+	if (!assets.length)
+		return '<tr><td colspan="3" class="muted">No assets yet — add one on the Data page.</td></tr>';
 	return assets
 		.map(
-			(a) => `<tr><td>${esc(a.name)} ${a.institution ? `<span class="muted">· ${esc(a.institution)}</span>` : ""}</td>
+			(
+				a,
+			) => `<tr><td>${esc(a.name)} ${a.institution ? `<span class="muted">· ${esc(a.institution)}</span>` : ""}</td>
 			<td><span class="pill">${esc(KIND_LABEL[a.kind] || a.kind)}</span></td>
 			<td class="num">${money(a.value)}</td></tr>`,
 		)
@@ -58,7 +64,8 @@ function assetRows(assets) {
 }
 
 function debtRows(debts) {
-	if (!debts.length) return '<tr><td colspan="3" class="muted">No debts. 🎉</td></tr>';
+	if (!debts.length)
+		return '<tr><td colspan="3" class="muted">No debts. 🎉</td></tr>';
 	return debts
 		.map(
 			(d) => `<tr><td>${esc(d.name)}</td>
@@ -118,7 +125,7 @@ function render(d) {
 		} catch (err) {
 			e.target.disabled = false;
 			e.target.textContent = "Snapshot today";
-			alert("Could not save snapshot: " + err.message);
+			alert(`Could not save snapshot: ${err.message}`);
 		}
 	};
 }
