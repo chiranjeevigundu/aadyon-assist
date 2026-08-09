@@ -4,8 +4,8 @@ Two views of Aadyon Assist. GitHub renders the diagrams below inline; the same
 content lives as standalone, editable sources you can open in mermaid.live, the VS Code
 Mermaid extensions, or draw.io:
 
-- High-level system map → [`architecture.mermaid`](../architecture.mermaid)
-- Services / container detail → [`services-architecture.mermaid`](../services-architecture.mermaid)
+- High-level system map → [`architecture.mermaid`](architecture.mermaid)
+- Services / container detail → [`services-architecture.mermaid`](services-architecture.mermaid)
 
 > **Keep in sync:** the fenced blocks here mirror those two source files. When you edit a
 > diagram, update both the `.mermaid` file and the matching block below.
@@ -166,6 +166,6 @@ flowchart LR
 
 ---
 
-See also [`SYSTEM.md`](../SYSTEM.md) for the prose architecture, [`docs/CLOUD.md`](CLOUD.md) for the
+See also [`SYSTEM.md`](SYSTEM.md) for the prose architecture, [`docs/CLOUD.md`](CLOUD.md) for the
 managed-cloud migration path, and [`docs/cloud-storage.md`](cloud-storage.md) for the portable
 object-storage details.

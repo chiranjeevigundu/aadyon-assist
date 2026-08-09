@@ -3,7 +3,7 @@
 This file is the first thing an AI coding agent (Claude Code, Cursor, Copilot, Windsurf, etc.)
 should read before changing anything in this repo. It encodes the rules, layout, and recipes so
 every agent works the same way and doesn't repeat past mistakes. Humans: see
-[README.md](README.md) (quickstart) and [SYSTEM.md](SYSTEM.md) (full architecture).
+[README.md](README.md) (quickstart) and [SYSTEM.md](docs/SYSTEM.md) (full architecture).
 
 **What this is:** Aadyon Assist — a self-hosted, multi-user personal finance / net-worth app
 (Postgres + FastAPI + Docker). One Postgres database is the single source of truth for assets,
@@ -63,7 +63,7 @@ justfile           the task runner — `just --list` shows every recipe
 docker-compose.yml services: db, migrate, api, briefing, backup, ntfy
 ```
 
-Full architecture, data model, and data flows: **[SYSTEM.md](SYSTEM.md)**.
+Full architecture, data model, and data flows: **[SYSTEM.md](docs/SYSTEM.md)**.
 
 ---
 
@@ -146,8 +146,8 @@ safe, history is **linear** (no force-push) and work lands via branches + PRs:
 ## Working across assistants (Claude ⇄ Antigravity ⇄ others)
 
 Different AI tools work on this repo **one after another**. Chat context never transfers between
-them, so the repo carries the state: **[HANDOFF.md](HANDOFF.md)** (the baton — current state +
-session log) and **[ROADMAP.md](ROADMAP.md)** (the backlog, written to be executable cold).
+them, so the repo carries the state: **[HANDOFF.md](docs/HANDOFF.md)** (the baton — current state +
+session log) and **[ROADMAP.md](docs/ROADMAP.md)** (the backlog, written to be executable cold).
 Pointer files route each tool here: `CLAUDE.md` (Claude), `GEMINI.md` (Antigravity/Gemini),
 `.github/copilot-instructions.md`, `.cursor/rules/`.
 
