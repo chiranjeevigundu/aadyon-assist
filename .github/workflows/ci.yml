@@ -76,7 +76,8 @@ jobs:
           [ -n "$TOKEN" ] || { echo "no token from signup"; exit 1; }
           echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
           AUTH="Authorization: Bearer $TOKEN"
-          curl -fsS -H "$AUTH" "$B/api/digital-me"  >/dev/null
+          curl -fsS -H "$AUTH" "$B/api/networth"     | grep -q '"net_worth"'
+          curl -fsS -H "$AUTH" -X POST "$B/api/networth/snapshot" >/dev/null
           curl -fsS -H "$AUTH" "$B/api/entities"    >/dev/null
           curl -fsS -H "$AUTH" "$B/api/agency/org"   | grep -q 'Aadyon CEO'
           curl -fsS -H "$AUTH" "$B/api/agency/health" >/dev/null
