@@ -9,13 +9,7 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/")
 def home():
-    """Digital Me — identity + life dimensions (the new front door)."""
-    return FileResponse(get_settings().dashboard_dir / "digital-me.html")
-
-
-@router.get("/networth")
-def networth_page():
-    """Net Worth — assets, liabilities, the running total, and the trend."""
+    """Net Worth — assets, liabilities, the running total, and the trend (front door)."""
     return FileResponse(get_settings().dashboard_dir / "networth.html")
 
 

@@ -48,14 +48,13 @@ ENTITIES: list[Entity] = [
          "hourly_rate": float, "est_pay": float, "status": str, "notes": str},
         order_by="shift_date DESC",
     ),
-    # --- Digital Me layer ---
+    # --- Profile (financial settings + personal context) ---
     Entity(
         "profile",
         {"full_name": str, "preferred_name": str, "birthdate": date, "birthplace": str, "location": str,
-         "nationality": str, "headline": str, "bio": str, "visa_type": str, "visa_status": str,
-         "work_auth_until": date, "target_role": str, "target_salary": float, "current_income": float,
-         "remittance_pct": float, "monthly_essential_expenses": float, "goal_title": str,
-         "goal_target_date": date, "life_expectancy_years": float},
+         "nationality": str, "headline": str, "bio": str, "target_role": str, "target_salary": float,
+         "current_income": float, "remittance_pct": float, "monthly_essential_expenses": float,
+         "goal_title": str, "goal_target_date": date, "life_expectancy_years": float},
         order_by="updated_at DESC",
     ),
     Entity(
