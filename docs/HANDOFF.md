@@ -8,7 +8,36 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — repo moved; UI fixes; open Sign Up (merged: PR #67, #68)
+## Latest session (2026-08-09) — SYSTEM DESIGN pass on docs/SYSTEM.md (branch `claude/system-design`)
+
+Owner asked to "do the system design." Scoped it (asked, didn't assume): document/review the
+**current** system, output as an update **to `docs/SYSTEM.md` + diagrams in place** (not a new
+file, not a new feature). Rewrote SYSTEM.md following a proper system-design framework
+(Requirements → High-Level Design → Deep Dive → Scale & Reliability → Trade-off Analysis), and
+fixed real inaccuracies found while grounding it against the live schema/config:
+
+- **Added §1 Requirements** (functional/non-functional/constraints) — wasn't stated explicitly
+  before.
+- **Fixed data-model gaps**: `01_schema.sql` has `users`, `conversations`, `messages`,
+  `memory_chunks`, `invite_codes`, and `shifts` — none were documented. Added them (with a note
+  that `users`/`invite_codes` are the two global non-RLS tables, verified via grep).
+- **Fixed a stale config entry**: `AGENCY_WORKER_ENABLED` was still listed (removed in PR #65);
+  added the S3 portability knobs (`S3_REGION`/`S3_FORCE_PATH_STYLE`/`S3_AUTO_CREATE_BUCKET`/
+  `S3_BUCKET_NAME`, not `S3_BUCKET`) that were missing despite being built earlier this session.
+- **Added §3.3-3.5** (caching / queue-event / error-handling) and **§4** (Scale & Reliability:
+  load estimate, vertical-vs-horizontal, failover/RPO-RTO, monitoring gaps) — none of this existed
+  before; verified the specific claims against code (retry-once in `db/session.py`, the bounded
+  assistant tool loop, `ratelimit.py`'s own docstring naming its single-instance trade-off).
+- **Added §5 Trade-off Analysis** (9 explicit decisions + alternative + why + cost) and **§9 What
+  to revisit as this grows** (closing section per the skill's output format).
+
+Doc-only change (no code touched); 165 tests + ruff unaffected. Verified: every markdown link in
+the file resolves, both embedded mermaid diagrams render clean (mermaid-cli, "Found 2 mermaid
+charts").
+
+---
+
+## Earlier session (2026-08-09) — repo moved; UI fixes; open Sign Up (merged: PR #67, #68)
 
 **Repo location changed:** the project moved from `D:\AI\aadyon-assist` to
 **`D:\AI\HemoLab\aadyon-assist`** (alongside the Floci projects). The move broke the running
