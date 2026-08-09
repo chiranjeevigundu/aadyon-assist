@@ -4,11 +4,22 @@ This file is how Claude, Google Antigravity, and any other assistant hand work t
 Chat context does **not** transfer between tools; this file (plus [ROADMAP.md](ROADMAP.md) and
 `git log`) is the shared memory. **A session that doesn't update this file didn't finish.**
 
-Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
+Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — DOCS refresh for the financial refocus (branch `claude/docs-refocus`)
+## Latest session (2026-08-09) — RESTRUCTURE markdown layout (branch `claude/docs-restructure`)
+
+Tidied the doc file layout (content unchanged): moved the internal reference docs — **SYSTEM.md,
+ROADMAP.md, HANDOFF.md, TAILSCALE.md, architecture.mermaid, services-architecture.mermaid** — into
+**`docs/`** via `git mv` (history preserved). Root now holds only README + the agent entry points
+(CLAUDE/AGENTS/GEMINI) + community-health (CONTRIBUTING/CODE_OF_CONDUCT/SECURITY): 13 → 7 markdown
+files. All cross-links updated and **every markdown link verified to resolve**. No code/CI touched
+(nothing references these by path). **Note: HANDOFF.md and ROADMAP.md now live in `docs/`.**
+
+---
+
+## Earlier session (2026-08-09) — DOCS refresh for the financial refocus (branch `claude/docs-refocus`)
 
 Docs-only pass (no code touched) so the repo reads cleanly for open-source after the prune:
 - **README.md** — full rewrite: finance / net-worth framing (Net Worth home, Tracker, Assistant,

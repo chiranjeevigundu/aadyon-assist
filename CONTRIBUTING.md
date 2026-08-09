@@ -4,7 +4,7 @@ Thanks for your interest! Whether you're a human or an AI coding agent, start wi
 **[AGENTS.md](AGENTS.md)** — it's the operating manual (golden rules, repo map, recipes,
 deploy ritual, and gotchas).
 
-- Architecture & data model: **[SYSTEM.md](SYSTEM.md)**
+- Architecture & data model: **[SYSTEM.md](docs/SYSTEM.md)**
 - Quickstart: **[README.md](README.md)**
 - Security model & reporting: **[SECURITY.md](SECURITY.md)**
 
