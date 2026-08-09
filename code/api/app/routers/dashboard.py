@@ -15,7 +15,7 @@ def home():
 
 @router.get("/tracker")
 def tracker():
-    """The Phase 1 life-ops tracker (deadlines, debts, bills, subs, shifts)."""
+    """The tracker: deadlines, debts, bills, subscriptions, shifts."""
     return FileResponse(get_settings().dashboard_dir / "index.html")
 
 

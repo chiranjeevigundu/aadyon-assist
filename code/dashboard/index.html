@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aadyon Assist</title>
+<title>Tracker · Aadyon Assist</title>
 <link rel="stylesheet" href="/static/assets/base.css">
 <style>
   header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
   header h1{font-size:18px;margin:0;font-weight:600}
   header .sub{color:var(--muted);font-size:13px}
+  nav[data-nav]{display:flex;gap:14px;flex-wrap:wrap}
+  nav[data-nav] a{color:var(--muted);font-size:13px;text-decoration:none}
+  nav[data-nav] a.active{color:var(--accent)}
   main{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:20px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
   .card h2{margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
@@ -35,8 +38,8 @@
 </head>
 <body>
 <header>
-  <div><h1>Aadyon Assist</h1><div class="sub">Life-ops tracker · Phase 1</div></div>
-  <div class="sub"><a href="/">← Net Worth</a> · <a href="/agency">Agency</a> · <a href="/accounts">Accounts</a> · <a href="/data">Data admin</a> · <a href="/docs" target="_blank">API docs</a> · <a href="#" onclick="load();return false">Refresh</a></div>
+  <div><h1>Tracker</h1><div class="sub">debts, bills, subscriptions & deadlines</div></div>
+  <nav data-nav></nav>
 </header>
 <main id="app"><div class="card">Loading…</div></main>
 <footer>Read-only view. The numbers don't change because this exists — only real-world actions do.</footer>
