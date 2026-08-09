@@ -8,7 +8,38 @@ Protocol: see "Working across assistants" in [AGENTS.md](AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — REFOCUS to a financial / net-worth app (in progress)
+## Latest session (2026-08-09) — PRUNE non-financial domains (branch `claude/prune-nonfinancial`)
+
+Removed the bulk of the non-financial surface (206 → ~164 tracked files, API 158 → 108 ops):
+- **Deleted:** the `mobile/` Expo app (21 files); Calendar + Drive connectors (services,
+  routers, tables); the Agency org (`services/agency.py`, `routers/agency.py`,
+  `jobs/agency_loop.py`, agency dashboard, tables `teams`/`agents`/`tasks`/`model_routes`/
+  `agent_runs`); career/goals persona (`applications`, `milestones`); the job-tracker sync
+  (`scripts/sync_job_tracker.*`, its test, `docs/JOB_TRACKER_SYNC.md`, `just sync-jobs`).
+- **Refactors to keep things working:** `routing.py` is now config-only (dropped the
+  `model_routes` DB query); `tools.py` dropped `get_calendar`/`get_tasks`/`delegate` and the
+  milestone/goal logic, and `propose_action` now writes to a **new `proposals` table** (the
+  human-in-the-loop store that replaces the agency `tasks`); signup no longer calls `seed_org`
+  (function dropped); `briefing.py` reads `proposals`; `crud.py` `GLOBAL_TABLES` emptied.
+- **Migration** `202608091600_prune_nonfinancial.sql`: DROPs the 11 removed tables + `seed_org`,
+  CREATEs `proposals` (RLS). Destructive — `just backup-now` first (I pg_dump'd before applying).
+- CI: smoke test dropped the `/api/agency/*` checks (were 404-ing), added `/api/assets` +
+  `/api/debts`; `verify.py` default endpoints updated.
+- Tests: deleted test_agency/test_calendar_ingest/test_drive_ingest/test_sync_job_tracker;
+  rewrote test_tools/test_routing; trimmed test_assistant_tools/test_imports. **165 passed**,
+  ruff + biome + compose all clean.
+- **Verified live** (backup → migrate → recreate, agency container removed): 7 removed endpoints
+  → 404, kept endpoints → 200, `/api/proposals` live, signup works without seed_org, assistant
+  answers net worth.
+
+**Still non-financial but KEPT (per owner):** email ingestion (`email_*`, `ms_graph`,
+`google_oauth`, `mailer`, `notify`), documents, assistant, `deadlines`/`bills`/`subscriptions`,
+`jobs`/`shifts` income. **Docs still stale** (README/SYSTEM/ROADMAP/AGENTS describe calendar/
+drive/agency) — a docs refresh is the remaining follow-up.
+
+---
+
+## Earlier session (2026-08-09) — REFOCUS to a financial / net-worth app (in progress)
 
 **Directive:** restructure into a simple, open-source, financial/net-worth-focused app —
 "remove everything that is not financial", keep it usable by anyone. Scoping decisions
