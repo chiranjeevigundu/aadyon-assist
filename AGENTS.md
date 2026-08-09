@@ -5,10 +5,11 @@ should read before changing anything in this repo. It encodes the rules, layout,
 every agent works the same way and doesn't repeat past mistakes. Humans: see
 [README.md](README.md) (quickstart) and [SYSTEM.md](SYSTEM.md) (full architecture).
 
-**What this is:** Aadyon Assist — a self-hosted, single-user life-ops platform (Postgres +
-FastAPI + Docker). One Postgres database is the single source of truth; on top of it sit a
-Digital Me scoring model, an agentic org, and a read-only email-ingest pipeline. It runs on the
-always-on "Mini-A" server and is reached over Tailscale.
+**What this is:** Aadyon Assist — a self-hosted, multi-user personal finance / net-worth app
+(Postgres + FastAPI + Docker). One Postgres database is the single source of truth for assets,
+debts, bills, subscriptions, income, and transactions; on top of it sit a net-worth read model,
+a conversational finance assistant, and a read-only email/document-ingest pipeline. It runs on
+the always-on "Mini-A" server and is reached over Tailscale.
 
 ---
 
@@ -19,8 +20,8 @@ always-on "Mini-A" server and is reached over Tailscale.
    hook; if you self-host with real data, keep a private local gitleaks config with your own
    denylist (see SECURITY.md). When adding examples, use placeholders.
 2. **Never weaken the human-in-the-loop boundary for external side effects.** The personal
-   assistant may directly create/update/delete the signed-in user's *own* records (deadlines,
-   bills, debts, subscriptions, milestones, profile) — that's authorized self-data editing.
+   assistant may directly create/update/delete the signed-in user's *own* records (assets,
+   debts, bills, subscriptions, deadlines, profile) — that's authorized self-data editing.
    But anything with a real-world **external** effect — a payment, sending email, a filing, a
    destructive action — must still go through `propose_action` → `awaiting_approval`. Email sync
    remains read-and-propose only.
@@ -49,17 +50,17 @@ code/api/app/      FastAPI app — see SYSTEM.md §4 for the full module breakdo
   core/config.py     all settings (DB, secrets, model routing, email, ntfy)
   db/session.py      pooled query() helper — RLS-scoped by current_user; query_unscoped for auth
   models/tables.py   Entity registry — the list of CRUD tables + writable columns
-  routers/           system, auth, crud (factory), agency, email, assistant, dashboard
-  services/          digital_me/dimensions/common, summary, routing/llm/tools/agency, assistant,
-                     auth, crypto, email_* (extract/store/imap/graph/ingest), ms_graph, notify
-  jobs/              briefing_loop, agency_loop, import_entities (each its own container)
+  routers/           system, auth, crud (factory), networth, bank, email, documents, assistant, dashboard
+  services/          networth, summary, common, routing/llm/tools, assistant, auth, crypto,
+                     storage, bank_*, email_* (extract/store/imap/graph/ingest), document_*, ms_graph, notify
+  jobs/              briefing_loop, backup_sync, import_entities (each its own container)
 code/db/migrations SQL migrations, applied by yoyo (ledger in the _yoyo_* tables)
-code/db/seed/      your personal seed SQL (gitignored; applied via `just seed`)
+code/db/init/      your personal seed SQL (gitignored)
 code/dashboard/    vanilla HTML/JS pages + assets/ (base.css, base.js)
 tests/             pytest suite (see §Verify)
 scripts/verify.py  API parity check (ops tool; CI uses Schemathesis)
 justfile           the task runner — `just --list` shows every recipe
-docker-compose.yml services: db, migrate, api, briefing, agency, backup, ntfy
+docker-compose.yml services: db, migrate, api, briefing, backup, ntfy
 ```
 
 Full architecture, data model, and data flows: **[SYSTEM.md](SYSTEM.md)**.
@@ -116,9 +117,10 @@ metric math in `services/` so it isn't duplicated across views.
 (`email_imap.py` / `email_graph.py`), extraction stays in `email_extract.py`, persistence in
 `email_store.py`, and `email_ingest.sync_account()` dispatches by `auth_type`. Keep it read-only.
 
-**Add/adjust an agent or model route:** agents and routes are *data* (`agents`, `model_routes`
-tables), editable in the data admin — usually no code change. Tool definitions live in
-`services/tools.py`; the run loop in `services/agency.py`.
+**Adjust the assistant's tools or model routing:** tool definitions + dispatch live in
+`services/tools.py` (write tools are generated from the `models.tables` column whitelists);
+tier → (provider, model) mapping is `config.default_routes` in `core/config.py`, resolved by
+`services/routing.py`. The assistant run loop is `services/assistant.py`.
 
 ---
 
@@ -177,7 +179,7 @@ git add -A && git commit && git push -u origin <branch>
 
 # server — history is linear, so a fast-forward pull works; migrations apply on up
 cd ~/aadyon-assist && git pull --ff-only \
-  && docker compose up -d --build migrate api briefing agency
+  && docker compose up -d --build migrate api briefing
 ```
 
 ---
