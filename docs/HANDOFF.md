@@ -8,7 +8,34 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — CONSOLIDATE migrations into one clean baseline (branch `claude/consolidate-migrations`)
+## Latest session (2026-08-09) — repo moved; UI fixes; open Sign Up (merged: PR #67, #68)
+
+**Repo location changed:** the project moved from `D:\AI\aadyon-assist` to
+**`D:\AI\HemoLab\aadyon-assist`** (alongside the Floci projects). The move broke the running
+Docker stack's bind-mounts and Docker Desktop silently turned the 5 `secrets/*.txt` files into
+empty directories — recovered by wiping volumes, regenerating fresh secret files (new
+`db_password`/`jwt_secret`; `test`/`test` S3 keys for Floci), and rebuilding from the new path.
+**Any future session must `cd` to the new path** — git remote/history are unaffected, only the
+working-tree location changed.
+
+**PR #67 — Tracker nav cleanup:** the Tracker page had its own hardcoded header row duplicating
+the shared nav, with a dead `/agency` link (404, left over from the earlier prune). Replaced with
+the same `<nav data-nav>` every other page uses; also fixed two `assistant.js` strings that still
+told users to check the removed "Agency tab" for proposals/document review (now point at Data).
+
+**PR #68 — Sign Up UI:** there was no signup form at all, only login, despite the backend always
+supporting open registration (`INVITE_REQUIRED=false` in this deployment). Added a toggled Sign
+Up form to `login.html`/`login.js`; the invite-code field starts hidden and only reveals itself
+if the server actually rejects signup for one (matches the backend's real `AuthError` text), so
+it works regardless of a given deployment's `INVITE_REQUIRED` setting.
+
+Both verified live end-to-end (not just tests): Tracker renders with the shared nav, no dead
+links; signed up through the real UI with no invite code and landed on the Net Worth dashboard.
+165 tests pass; ruff + Biome clean. Test accounts/data removed after verification.
+
+---
+
+## Earlier session (2026-08-09) — CONSOLIDATE migrations into one clean baseline (branch `claude/consolidate-migrations`)
 
 Owner asked for a clean start (no existing data to preserve), so the 24-file migration
 history (which created many tables later dropped in the refocus) was collapsed into a single
