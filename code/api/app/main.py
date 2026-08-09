@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.routers import agency, assistant, auth, dashboard, email, system, calendar, drive, bank, documents
+from app.routers import agency, assistant, auth, dashboard, email, system, calendar, drive, bank, documents, networth
 from app.routers.auth import get_current_user
 from app.routers.crud import CRUD_ROUTERS
 
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar.router, dependencies=guard)
     app.include_router(drive.router, dependencies=guard)
     app.include_router(bank.router, dependencies=guard)
+    app.include_router(networth.router, dependencies=guard)
     app.include_router(documents.router, dependencies=guard)
     app.include_router(assistant.router, dependencies=guard)
     for r in CRUD_ROUTERS:

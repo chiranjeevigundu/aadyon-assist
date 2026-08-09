@@ -94,7 +94,7 @@ def test_non_writable_table_rejected():
 
 def test_update_profile_drops_empty_strings(monkeypatch):
     # The model sends "" for fields it has no value for; "" into a date/numeric
-    # column is a DB error (the bug behind the visa-update 503) — must be skipped.
+    # column is a DB error — those must be skipped, real values kept.
     set_current_user("u1")
 
     def q(sql, p=(), c=False):
@@ -104,12 +104,12 @@ def test_update_profile_drops_empty_strings(monkeypatch):
     fake = patch_query(monkeypatch, "app.services.tools", q)
     out = tools.dispatch(
         "update_profile",
-        {"visa_type": "F-1", "visa_status": "student", "birthdate": "", "preferred_name": ""},
+        {"location": "Austin", "headline": "Saver", "birthdate": "", "preferred_name": ""},
         {},
     )
     assert out["ok"] is True
     upd = next(c for c in fake.calls if c[0].strip().startswith("UPDATE profile"))
-    assert "visa_type" in upd[0] and "visa_status" in upd[0]
+    assert "location" in upd[0] and "headline" in upd[0]
     assert "birthdate" not in upd[0] and "preferred_name" not in upd[0]
 
 

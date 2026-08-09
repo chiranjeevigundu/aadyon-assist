@@ -30,7 +30,7 @@ async function load() {
 	}
 	app.innerHTML = "";
 
-	// --- Visa / top deadline hero ---
+	// --- Top deadline hero ---
 	const next = (d.deadlines || [])[0];
 	if (next) {
 		const days = next.days_left;
