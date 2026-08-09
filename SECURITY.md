@@ -1,8 +1,8 @@
 # Security Policy
 
-Aadyon Assist is a **self-hosted** application that stores personal financial and
-immigration data. Its security model assumes you run it on infrastructure you
-control, ideally reachable only over a private network (e.g. Tailscale).
+Aadyon Assist is a **self-hosted** application that stores personal financial
+data. Its security model assumes you run it on infrastructure you control,
+ideally reachable only over a private network (e.g. Tailscale).
 
 ## Reporting a vulnerability
 
@@ -18,8 +18,8 @@ repository's Security tab). You'll get an acknowledgement within a week.
   optional `openrouter_api_key`, `email_key`) — never committed; config reads the
   secret file first, env var second.
 - **Email credentials** are Fernet-encrypted at rest; mail access is read-only.
-- **Agent actions** with real-world side effects (money, email, filings) are
-  queued for explicit human approval — they never auto-execute.
+- **Assistant actions** with real-world side effects (money, email, paying a bill)
+  are queued as proposals for explicit human approval — they never auto-execute.
 
 ## Secret scanning
 

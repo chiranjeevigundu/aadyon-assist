@@ -123,10 +123,9 @@ class Settings:
         # 30 days by default — mobile clients stay logged in between sessions.
         self.jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 30)))
 
-        # The background agency worker that drains the task queue.
-        self.agency_worker_enabled = os.getenv("AGENCY_WORKER_ENABLED", "true").lower() == "true"
+        # Max tool-calling rounds the assistant runs per turn (bounds the loop).
         self.agent_max_steps = int(os.getenv("AGENT_MAX_STEPS", "6"))
-        # Fallback tier -> (provider, model) if the model_routes table has no row.
+        # Fallback tier -> (provider, model) for model routing.
         self.default_routes = {
             "reasoning": ("openrouter", "openrouter/auto"),
             "cheap": ("openrouter", "openai/gpt-4o-mini"),
