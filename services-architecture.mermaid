@@ -1,0 +1,94 @@
+flowchart LR
+%% Aadyon Assist — Services & Deployment (C4 "container" view)
+%% ---------------------------------------------------------------------------
+%% Honest framing: this is a MODULAR MONOLITH + sidecar workers, not a fleet of
+%% independent microservices. `api`, `agency`, `briefing`, and `migrate` are the
+%% SAME image (code/api/Dockerfile) run with different entrypoints; `ntfy` and
+%% `backup` are stock upstream images. This diagram shows the deployable
+%% containers and their dependencies.
+%%
+%% Edit / render this file with any of:
+%%   - https://mermaid.live  (paste, edit, export SVG/PNG)
+%%   - VS Code "Markdown Preview Mermaid" / "Mermaid Editor" extensions
+%%   - draw.io  (Arrange -> Insert -> Advanced -> Mermaid)
+%%   - GitHub renders it when embedded in a Markdown ```mermaid code fence
+%%
+%% Source of truth: docker-compose.yml, code/api/app/{routers,jobs,services}.
+%% Companion high-level map: architecture.mermaid
+%% ---------------------------------------------------------------------------
+
+  subgraph CLIENTS[" CLIENTS "]
+    direction TB
+    mobile["Mobile app<br/>+ browser dashboards"]
+    phone["iPhone<br/>ntfy app"]
+  end
+
+  subgraph SVC[" APPLICATION SERVICES · Docker Compose "]
+    direction TB
+    api["api · FastAPI :8000<br/>REST + dashboards · JWT + RLS<br/>domains: auth · assistant · email · calendar<br/>drive · bank · documents · agency · crud"]
+    agency["agency<br/>agent-queue worker"]
+    briefing["briefing<br/>daily digest → md + push"]
+    migrate["migrate<br/>yoyo DDL · init job"]
+    backup["backup<br/>nightly pg_dump · cron"]
+    ntfy["ntfy :8090<br/>self-hosted push relay"]
+  end
+
+  subgraph DATA[" DATA & STATE "]
+    direction TB
+    pg[("Postgres 16 + pgvector :5432<br/>RLS isolation · pgdata volume")]
+    s3[("Object storage · S3 API<br/>Floci/LocalStack :4566 — or — AWS S3")]
+    secrets[/"Docker secrets<br/>db · jwt · s3 · resend"/]
+    files[/"File volumes<br/>artifacts/ · data/exports/"/]
+  end
+
+  subgraph EXT[" EXTERNAL SYSTEMS "]
+    direction TB
+    llm["OpenRouter<br/>cloud LLM"]
+    ollama["Ollama<br/>local tier :11434"]
+    gmail["Gmail API · IMAP<br/>read-only"]
+    msgraph["Microsoft Graph<br/>Outlook/365 · read-only"]
+    gsuite["Google Calendar · Drive<br/>read-only OAuth"]
+    resend["Resend<br/>outbound email"]
+    ntfyup["ntfy.sh<br/>iOS push upstream"]
+    gh["GitHub Actions<br/>CI/CD"]
+  end
+
+  mobile -->|"HTTPS/JSON · Tailscale"| api
+  api -->|"SQL · RLS-scoped"| pg
+  agency --> pg
+  briefing --> pg
+  migrate -->|"DDL · migrations"| pg
+  backup -->|"pg_dump"| pg
+  backup --> files
+  api -->|"upload / download"| s3
+  agency --> s3
+  briefing --> s3
+  briefing -->|"briefing-*.md"| files
+  api --> files
+
+  agency -->|"routed inference"| llm
+  agency --> ollama
+  api --> llm
+  api -->|"fetch · LLM extract"| gmail
+  api --> msgraph
+  api --> gsuite
+  api -->|"verify / reset mail"| resend
+  briefing --> ntfy
+  ntfy --> ntfyup
+  ntfyup -.->|"background push"| phone
+
+  gh -->|"pull --ff-only · just up"| SVC
+  secrets -.-> api
+  secrets -.-> agency
+
+  classDef own fill:#e6f6f4,stroke:#0e8f9b,color:#0a5b62,stroke-width:1.4px;
+  classDef store fill:#eef2f7,stroke:#7c8896,color:#1a2430;
+  classDef ext fill:#f7f4ee,stroke:#c2b183,color:#5f5326;
+  classDef sec fill:#f6f1e6,stroke:#c7ad72,color:#6a5626;
+  class api,agency,briefing,migrate own;
+  class pg,s3,files store;
+  class secrets sec;
+  class llm,ollama,gmail,msgraph,gsuite,resend,ntfyup,gh ext;
+
+%% Legend: teal = first-party service (your code) · grey = data/state
+%%         tan = external / stock image · dashed = secrets & async push
