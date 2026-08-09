@@ -9,5 +9,4 @@ useDefault = true
 description = "Committed placeholders and docs that trip generic rules"
 paths = [
   '''code/db/seed\.example\.sql''',
-  '''mobile/package-lock\.json''',
 ]

@@ -4,7 +4,6 @@
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["mobile"]
 
 [tool.ruff.lint]
 # Real-bug rules only, no style churn: E9 (syntax), F (pyflakes), B (bugbear).
