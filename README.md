@@ -79,11 +79,11 @@ phone over Tailscale. Content stays on the tailnet; only the iOS background wake
 ## Documentation
 
 - **[docs/architecture.md](docs/architecture.md)** — system + service diagrams.
-- **[SYSTEM.md](SYSTEM.md)** — full architecture: components, data flows, data model, security,
+- **[SYSTEM.md](docs/SYSTEM.md)** — full architecture: components, data flows, data model, security,
   deployment, and operations runbook.
 - **[docs/cloud-storage.md](docs/cloud-storage.md)** — object storage: real AWS ⇄ local emulator.
 - **[docs/CLOUD.md](docs/CLOUD.md)** — moving to a managed cloud platform.
-- **[TAILSCALE.md](TAILSCALE.md)** — remote-access setup.
+- **[TAILSCALE.md](docs/TAILSCALE.md)** — remote-access setup.
 
 ## Stack
 
