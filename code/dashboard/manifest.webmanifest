@@ -1,7 +1,7 @@
 {
   "name": "Aadyon Assist",
   "short_name": "Aadyon",
-  "description": "Personal life-ops tracker — Digital Me, deadlines, debts, agency.",
+  "description": "Personal finance tracker — net worth, assets, debts, bills.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -12,9 +12,9 @@ def test_schemas_by_role():
     assert [s["function"]["name"] for s in tools.schemas_for("???")] == ["get_snapshot"]
 
 
-def test_get_snapshot_calls_digital_me(monkeypatch):
-    monkeypatch.setattr(tools, "digital_me", lambda: {"as_of": "2026-06-23"})
-    assert tools.dispatch("get_snapshot", {}, {}) == {"as_of": "2026-06-23"}
+def test_get_snapshot_returns_net_worth(monkeypatch):
+    monkeypatch.setattr(tools, "net_worth_summary", lambda: {"net_worth": 12000.0})
+    assert tools.dispatch("get_snapshot", {}, {}) == {"net_worth": 12000.0}
 
 
 def test_delegate_creates_subtask(monkeypatch):

@@ -1,6 +1,6 @@
 """Shared numeric helpers and constants for the metrics services.
 
-Kept tiny and dependency-free so any service (dimensions, digital_me, future
+Kept tiny and dependency-free so any service (summary, alerts, future
 ones) can reuse the same rounding/clamping/banding rules.
 """
 

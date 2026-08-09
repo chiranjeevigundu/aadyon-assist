@@ -14,7 +14,7 @@ import json  # noqa: F401 — kept for parity/backwards-compat with callers
 
 from app.db.session import current_user_id, query
 from app.models.tables import ENTITIES
-from app.services.digital_me import digital_me
+from app.services.networth import net_worth_summary
 
 _COLS = {e.table: list(e.columns) for e in ENTITIES}
 
@@ -40,7 +40,7 @@ _BOOL_COLS = {"autopay", "active", "achieved"}
 def _param_type(col: str) -> dict:
     if col in _BOOL_COLS:
         return {"type": "boolean"}
-    if "date" in col or col.endswith("_on") or col in ("renews_on", "work_auth_until"):
+    if "date" in col or col.endswith("_on") or col in ("renews_on",):
         return {"type": "string", "description": "ISO date, YYYY-MM-DD"}
     if any(h in col for h in _NUMERIC_HINTS):
         return {"type": "number"}
@@ -57,9 +57,9 @@ _SCHEMAS: dict = {
         "type": "function",
         "function": {
             "name": "get_snapshot",
-            "description": "Get the full Digital Me snapshot: profile, life-since-birth, "
-                           "projected income, and the financial/visa/career/goal dimensions "
-                           "(including debts, deadlines, applications, goals). Call this first.",
+            "description": "Get the user's financial snapshot: net worth (total assets − total "
+                           "liabilities), assets broken down by kind, the individual holdings and "
+                           "debts, and the net-worth history. Call this first for real numbers.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
@@ -140,7 +140,7 @@ _SCHEMAS: dict = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "team": {"type": "string", "enum": ["Finance", "Immigration", "Career", "Growth"]},
+                    "team": {"type": "string", "enum": ["Finance", "Career", "Growth"]},
                     "title": {"type": "string"},
                     "description": {"type": "string"},
                 },
@@ -170,8 +170,8 @@ _SCHEMAS: dict = {
         "type": "function",
         "function": {
             "name": "update_profile",
-            "description": "Update the user's profile/identity fields (name, location, visa, "
-                           "target role/salary, current income, goal, etc.). Only pass fields to change.",
+            "description": "Update the user's profile fields (name, location, current income, "
+                           "monthly essential expenses, savings goal, etc.). Only pass fields to change.",
             "parameters": {"type": "object", "properties": _props(_COLS["profile"])},
         },
     },
@@ -268,7 +268,7 @@ def dispatch(name: str, args: dict, ctx: dict) -> dict:
 
 def _dispatch(name: str, args: dict, ctx: dict) -> dict:
     if name == "get_snapshot":
-        return digital_me()
+        return net_worth_summary()
     if name == "get_calendar":
         return _get_calendar(args)
     if name == "get_transactions":

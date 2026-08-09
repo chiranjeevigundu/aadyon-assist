@@ -48,14 +48,13 @@ ENTITIES: list[Entity] = [
          "hourly_rate": float, "est_pay": float, "status": str, "notes": str},
         order_by="shift_date DESC",
     ),
-    # --- Digital Me layer ---
+    # --- Profile (financial settings + personal context) ---
     Entity(
         "profile",
         {"full_name": str, "preferred_name": str, "birthdate": date, "birthplace": str, "location": str,
-         "nationality": str, "headline": str, "bio": str, "visa_type": str, "visa_status": str,
-         "work_auth_until": date, "target_role": str, "target_salary": float, "current_income": float,
-         "remittance_pct": float, "monthly_essential_expenses": float, "goal_title": str,
-         "goal_target_date": date, "life_expectancy_years": float},
+         "nationality": str, "headline": str, "bio": str, "target_role": str, "target_salary": float,
+         "current_income": float, "remittance_pct": float, "monthly_essential_expenses": float,
+         "goal_title": str, "goal_target_date": date, "life_expectancy_years": float},
         order_by="updated_at DESC",
     ),
     Entity(
@@ -105,6 +104,22 @@ ENTITIES: list[Entity] = [
         {"account_id": UUID, "file_id": str, "file_name": str, "mime_type": str,
          "web_view_link": str, "size_bytes": int, "status": str},
         order_by="updated_at DESC",
+    ),
+    # --- Net worth: assets (holdings) & snapshots ---
+    # Liabilities are the existing `debts`; assets − debts = net worth. Snapshots are
+    # a per-day time series written by the /api/networth/snapshot route (create=False).
+    Entity(
+        "assets",
+        {"name": str, "kind": str, "institution": str, "value": float, "currency": str,
+         "as_of": date, "active": bool, "notes": str},
+        order_by="value DESC",
+    ),
+    Entity(
+        "net_worth_snapshots",
+        {"snapshot_date": date, "total_assets": float, "total_liabilities": float,
+         "net_worth": float, "currency": str},
+        order_by="snapshot_date DESC",
+        create=False,  # written by the snapshot route, not the generic POST
     ),
     # --- Bank accounts & transactions ---
     Entity(
