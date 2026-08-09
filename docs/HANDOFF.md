@@ -8,7 +8,28 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — RESTRUCTURE markdown layout (branch `claude/docs-restructure`)
+## Latest session (2026-08-09) — CONSOLIDATE migrations into one clean baseline (branch `claude/consolidate-migrations`)
+
+Owner asked for a clean start (no existing data to preserve), so the 24-file migration
+history (which created many tables later dropped in the refocus) was collapsed into a single
+**`code/db/migrations/01_schema.sql`** baseline that builds only the current financial schema.
+
+- Generated from the live schema via `pg_dump --schema-only -T 'yoyo_*' -T '_yoyo_*'`, then:
+  stripped the `\restrict`/`\unrestrict` psql meta-commands, the `SET` preamble, and pg_dump's
+  comment banners (they made yoyo/sqlparse emit an empty statement → "can't execute an empty
+  query"); prepended the `aadyon_app` role creation (pg_dump omits roles). It keeps 22 tables,
+  the `debt_summary` view (security_invoker), `set_updated_at`, 20 RLS policies, and all grants.
+- Deleted the other 23 migration files.
+- **Verified from zero:** `docker compose down -v` → migrate exits 0, no errors; rebuilt schema
+  `pg_dump` **diffs byte-identical** to the pre-consolidation schema (only pg_dump's random
+  `\restrict` nonces differ). App smoke on the fresh DB: health 200, signup, create asset,
+  net worth all work. 165 tests pass, ruff clean.
+- **Note:** to re-baseline again later, regenerate the same way. `just migrate-baseline` still
+  exists for adopting an already-populated DB without re-running the schema.
+
+---
+
+## Earlier session (2026-08-09) — RESTRUCTURE markdown layout (branch `claude/docs-restructure`)
 
 Tidied the doc file layout (content unchanged): moved the internal reference docs — **SYSTEM.md,
 ROADMAP.md, HANDOFF.md, TAILSCALE.md, architecture.mermaid, services-architecture.mermaid** — into
