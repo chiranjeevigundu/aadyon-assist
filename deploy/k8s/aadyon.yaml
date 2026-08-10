@@ -91,7 +91,10 @@ spec:
       containers:
         - name: migrate
           image: __IMAGE__
-          imagePullPolicy: IfNotPresent
+          # Always: the tag is mutable (:latest) and pushed on every deploy, so a
+          # cached layer would silently keep running stale code. The registry is
+          # local, so re-pulling costs nothing.
+          imagePullPolicy: Always
           env:
             - name: POSTGRES_USER
               value: aadyon
@@ -151,7 +154,10 @@ spec:
       containers:
         - name: api
           image: __IMAGE__
-          imagePullPolicy: IfNotPresent
+          # Always: the tag is mutable (:latest) and pushed on every deploy, so a
+          # cached layer would silently keep running stale code. The registry is
+          # local, so re-pulling costs nothing.
+          imagePullPolicy: Always
           env:
             - name: DB_HOST
               value: postgres
@@ -232,7 +238,10 @@ spec:
       containers:
         - name: briefing
           image: __IMAGE__
-          imagePullPolicy: IfNotPresent
+          # Always: the tag is mutable (:latest) and pushed on every deploy, so a
+          # cached layer would silently keep running stale code. The registry is
+          # local, so re-pulling costs nothing.
+          imagePullPolicy: Always
           command: ["python", "-m", "app.jobs.briefing_loop"]
           env:
             - name: DB_HOST
