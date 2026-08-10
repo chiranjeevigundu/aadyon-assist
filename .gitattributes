@@ -1,0 +1,56 @@
+# Normalize line endings so the repo stores LF regardless of the OS committing.
+#
+# Why: on Windows, git checks files out as CRLF while the repo holds LF, so
+# `git status` reports files as modified that nobody edited. That noise has hidden
+# real problems (a Biome formatting failure that passed locally and broke CI).
+# With this file, everyone gets LF in the working tree and the confusion stops.
+#
+# Applied once with `git add --renormalize .` — that commit touches many files but
+# changes zero actual content.
+
+# Default: let git detect text vs binary, and store/check out text as LF.
+* text=auto eol=lf
+
+# Belt and braces for the formats we actually ship.
+*.py     text eol=lf
+*.js     text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.md     text eol=lf
+*.mdc    text eol=lf
+*.mermaid text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.toml   text eol=lf
+*.ini    text eol=lf
+*.sql    text eol=lf
+*.txt    text eol=lf
+*.example text eol=lf
+*.webmanifest text eol=lf
+*.gitignore text eol=lf
+*.editorconfig text eol=lf
+Dockerfile text eol=lf
+justfile text eol=lf
+CODEOWNERS text eol=lf
+LICENSE  text eol=lf
+
+# Must stay LF or they break when executed inside Linux containers.
+*.sh     text eol=lf
+*.bash   text eol=lf
+
+# Windows-only scripts genuinely need CRLF.
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# Never touch binaries.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.xlsx   binary
+*.dump   binary
+*.gz     binary
