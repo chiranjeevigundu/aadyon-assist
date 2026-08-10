@@ -77,6 +77,12 @@ class Settings:
         # and to build email verify/reset links).
         self.app_public_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000").strip()
 
+        # Developer surfaces. OFF by default so a normal deployment shows only the
+        # product UI. When true: the raw table console at /data, plus FastAPI's
+        # auto-generated /docs, /redoc and /openapi.json, become available and are
+        # linked in the nav. Never enable on an internet-facing instance.
+        self.dev_mode = os.getenv("DEV_MODE", "false").strip().lower() == "true"
+
         # --- Multi-user (family & friends) account hardening ---
         # Transactional email (Resend-style API). Empty key => mailer logs to stdout
         # instead of sending, so dev/CI never send. Secret file wins over the env var.
