@@ -1,6 +1,22 @@
-if (getToken()) {
-	window.location.href = "/";
-}
+// A token sitting in storage is not proof of a valid session — it may be stale
+// (expired, or signed with a key this server no longer uses). Verify it before
+// redirecting; otherwise a rejected token bounces /login -> / -> /login forever.
+(async () => {
+	const tok = getToken();
+	if (!tok) return;
+	try {
+		const res = await fetch("/api/auth/me", {
+			headers: { Authorization: `Bearer ${tok}` },
+		});
+		if (res.ok) {
+			window.location.href = "/";
+			return;
+		}
+	} catch {
+		/* network error — fall through and let them sign in normally */
+	}
+	localStorage.removeItem(TOKEN_KEY);
+})();
 
 const errEl = document.getElementById("error-msg");
 const loginForm = document.getElementById("login-form");

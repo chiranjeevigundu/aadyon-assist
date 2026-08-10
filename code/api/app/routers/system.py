@@ -6,6 +6,7 @@ guarded by get_current_user, which also binds the RLS context for their queries.
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.core.config import get_settings
 from app.db.session import query
 from app.routers.auth import get_current_user
 from app.services.summary import dashboard_summary
@@ -26,6 +27,14 @@ def health():
         return {"status": "ok", "db": "up"}
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"status": "degraded", "db": str(e)}, status_code=503)
+
+
+@router.get("/app-config")
+def app_config():
+    """Public, non-sensitive UI flags. Lets the frontend render the right chrome
+    (dev links, invite field) without hardcoding deployment policy."""
+    s = get_settings()
+    return {"dev_mode": s.dev_mode, "invite_required": s.invite_required}
 
 
 @router.get("/summary", dependencies=_guard)

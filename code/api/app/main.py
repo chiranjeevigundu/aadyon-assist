@@ -38,7 +38,16 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Aadyon Assist", version="0.2.0", lifespan=lifespan)
+    # Swagger/ReDoc/OpenAPI are developer surfaces: exposed only when DEV_MODE=true.
+    _dev = get_settings().dev_mode
+    app = FastAPI(
+        title="Aadyon Assist",
+        version="0.2.0",
+        lifespan=lifespan,
+        docs_url="/docs" if _dev else None,
+        redoc_url="/redoc" if _dev else None,
+        openapi_url="/openapi.json" if _dev else None,
+    )
 
     # Postgres text can never contain NUL (0x00); psycopg2 raises a bare ValueError
     # when such a value reaches a query, which would surface as a 500. Reject NUL in
