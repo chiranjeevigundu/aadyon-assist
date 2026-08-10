@@ -1,0 +1,276 @@
+# aadyon-assist on Kubernetes.
+#
+# Written against a local k3s cluster (provisioned via Floci's EKS emulation), but
+# nothing here is Floci-specific except the image registry and the S3 endpoint --
+# both of which come from deploy/k8s/deploy.sh so they can differ per environment.
+#
+# Postgres runs in-cluster (StatefulSet + PVC). Object storage points at whatever
+# S3_ENDPOINT_URL the aadyon-env ConfigMap carries (a local emulator, or empty for
+# real AWS S3). See deploy/k8s/README.md.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aadyon
+---
+# Postgres (pgvector) — in-cluster, persistent
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aadyon
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: aadyon
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          env:
+            - name: POSTGRES_USER
+              value: aadyon
+            - name: POSTGRES_DB
+              value: aadyon_assist
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aadyon-secrets
+                  key: db_password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U aadyon -d aadyon_assist"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# One-shot schema migration (mirrors the compose `migrate` service)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: aadyon
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_USER
+              value: aadyon
+            - name: POSTGRES_DB
+              value: aadyon_assist
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -e
+              SECRET=/etc/aadyon/secrets/db_password
+              echo "waiting for postgres..."
+              until python -c "import psycopg2; psycopg2.connect(host='postgres', dbname='aadyon_assist', user='aadyon', password=open('$SECRET').read().strip()).close()" 2>/dev/null; do sleep 2; done
+              echo "postgres ready"
+              PW="$(cat $SECRET)"
+              yoyo apply -v --batch --database "postgresql://${POSTGRES_USER}:${PW}@postgres:5432/${POSTGRES_DB}" /srv/db/migrations
+              python -c "import os, psycopg2; pw=open('$SECRET').read().strip(); conn=psycopg2.connect(host='postgres', dbname=os.environ['POSTGRES_DB'], user=os.environ['POSTGRES_USER'], password=pw); conn.autocommit=True; conn.cursor().execute('ALTER ROLE aadyon_app WITH PASSWORD %s', (pw,))"
+              echo "migrate complete"
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/aadyon/secrets
+              readOnly: true
+      volumes:
+        - name: secrets
+          secret:
+            secretName: aadyon-secrets
+---
+# API
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: aadyon
+spec:
+  type: NodePort
+  selector:
+    app: api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: aadyon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_USER
+              value: aadyon_app
+            - name: POSTGRES_DB
+              value: aadyon_assist
+            - name: POSTGRES_USER
+              value: aadyon
+            - name: DB_PASSWORD_FILE
+              value: /etc/aadyon/secrets/db_password
+            - name: JWT_SECRET_FILE
+              value: /etc/aadyon/secrets/jwt_secret
+            - name: ARTIFACTS_DIR
+              value: /srv/artifacts
+            - name: INVITE_REQUIRED
+              value: "false"
+            # Developer surfaces (/data, /docs) stay off in a deployed instance.
+            - name: DEV_MODE
+              value: "false"
+            # Storage -> the Floci S3 emulator (reachable on the floci_default network)
+            - name: STORAGE_BACKEND
+              value: s3
+            - name: S3_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: aadyon-env
+                  key: S3_ENDPOINT_URL
+            - name: S3_BUCKET_NAME
+              value: aadyon-assist
+            - name: S3_REGION
+              value: us-east-1
+            - name: S3_ACCESS_KEY_FILE
+              value: /etc/aadyon/secrets/s3_access_key
+            - name: S3_SECRET_KEY_FILE
+              value: /etc/aadyon/secrets/s3_secret_key
+            - name: S3_FORCE_PATH_STYLE
+              value: "auto"
+            - name: S3_AUTO_CREATE_BUCKET
+              value: "true"
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/aadyon/secrets
+              readOnly: true
+            - name: artifacts
+              mountPath: /srv/artifacts
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: secrets
+          secret:
+            secretName: aadyon-secrets
+        - name: artifacts
+          emptyDir: {}
+---
+# Briefing worker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: briefing
+  namespace: aadyon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: briefing
+  template:
+    metadata:
+      labels:
+        app: briefing
+    spec:
+      containers:
+        - name: briefing
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.jobs.briefing_loop"]
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_USER
+              value: aadyon_app
+            - name: POSTGRES_DB
+              value: aadyon_assist
+            - name: POSTGRES_USER
+              value: aadyon
+            - name: DB_PASSWORD_FILE
+              value: /etc/aadyon/secrets/db_password
+            - name: ARTIFACTS_DIR
+              value: /srv/artifacts
+            - name: STORAGE_BACKEND
+              value: s3
+            - name: S3_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: aadyon-env
+                  key: S3_ENDPOINT_URL
+            - name: S3_BUCKET_NAME
+              value: aadyon-assist
+            - name: S3_REGION
+              value: us-east-1
+            - name: S3_ACCESS_KEY_FILE
+              value: /etc/aadyon/secrets/s3_access_key
+            - name: S3_SECRET_KEY_FILE
+              value: /etc/aadyon/secrets/s3_secret_key
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/aadyon/secrets
+              readOnly: true
+            - name: artifacts
+              mountPath: /srv/artifacts
+      volumes:
+        - name: secrets
+          secret:
+            secretName: aadyon-secrets
+        - name: artifacts
+          emptyDir: {}
