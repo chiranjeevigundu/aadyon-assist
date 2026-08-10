@@ -49,28 +49,124 @@ function kindRows(byKind, totalAssets) {
 		.join("");
 }
 
+// --- form field definitions (friendly labels; no raw column names shown) ---
+const ASSET_FIELDS = [
+	{
+		name: "name",
+		label: "Name",
+		type: "text",
+		required: true,
+		placeholder: "e.g. Vanguard brokerage",
+	},
+	{
+		name: "kind",
+		label: "Type",
+		type: "select",
+		required: true,
+		options: Object.entries(KIND_LABEL).map(([value, label]) => ({
+			value,
+			label,
+		})),
+	},
+	{
+		name: "value",
+		label: "Current value",
+		type: "money",
+		required: true,
+		placeholder: "0.00",
+	},
+	{
+		name: "institution",
+		label: "Institution",
+		type: "text",
+		placeholder: "Optional — bank or broker",
+	},
+	{
+		name: "as_of",
+		label: "Value as of",
+		type: "date",
+		help: "Optional — when this value was accurate.",
+	},
+	{ name: "notes", label: "Notes", type: "textarea" },
+];
+
+const DEBT_KINDS = [
+	{ value: "credit", label: "Credit card" },
+	{ value: "auto", label: "Auto loan" },
+	{ value: "student", label: "Student loan" },
+	{ value: "mortgage", label: "Mortgage" },
+	{ value: "personal", label: "Personal loan" },
+	{ value: "other", label: "Other" },
+];
+const DEBT_FIELDS = [
+	{
+		name: "name",
+		label: "Name",
+		type: "text",
+		required: true,
+		placeholder: "e.g. Chase Sapphire",
+	},
+	{
+		name: "kind",
+		label: "Type",
+		type: "select",
+		required: true,
+		options: DEBT_KINDS,
+	},
+	{
+		name: "balance",
+		label: "Balance owed",
+		type: "money",
+		required: true,
+		placeholder: "0.00",
+	},
+	{
+		name: "apr",
+		label: "Interest rate (APR %)",
+		type: "number",
+		step: "0.01",
+		placeholder: "e.g. 19.99",
+	},
+	{ name: "min_payment", label: "Minimum payment", type: "money" },
+	{
+		name: "credit_limit",
+		label: "Credit limit",
+		type: "money",
+		help: "Cards only — used for utilization.",
+	},
+	{ name: "due_date", label: "Next due date", type: "date" },
+];
+
 function assetRows(assets) {
 	if (!assets.length)
-		return '<tr><td colspan="3" class="muted">No assets yet — add one on the Data page.</td></tr>';
+		return `<tr><td colspan="4" class="empty">Nothing here yet. Add your first holding to start tracking net worth.</td></tr>`;
 	return assets
 		.map(
 			(
 				a,
 			) => `<tr><td>${esc(a.name)} ${a.institution ? `<span class="muted">· ${esc(a.institution)}</span>` : ""}</td>
 			<td><span class="pill">${esc(KIND_LABEL[a.kind] || a.kind)}</span></td>
-			<td class="num">${money(a.value)}</td></tr>`,
+			<td class="num">${money(a.value)}</td>
+			<td><div class="row-actions">
+				<button class="icon-btn" data-edit-asset="${esc(a.id)}" title="Edit">Edit</button>
+				<button class="icon-btn danger" data-del-asset="${esc(a.id)}" data-name="${esc(a.name)}" title="Delete">Delete</button>
+			</div></td></tr>`,
 		)
 		.join("");
 }
 
 function debtRows(debts) {
 	if (!debts.length)
-		return '<tr><td colspan="3" class="muted">No debts. 🎉</td></tr>';
+		return '<tr><td colspan="4" class="empty">No debts tracked.</td></tr>';
 	return debts
 		.map(
 			(d) => `<tr><td>${esc(d.name)}</td>
 			<td class="num">${d.apr != null ? `${Number(d.apr).toFixed(1)}%` : "—"}</td>
-			<td class="num">${money(d.balance)}</td></tr>`,
+			<td class="num">${money(d.balance)}</td>
+			<td><div class="row-actions">
+				<button class="icon-btn" data-edit-debt="${esc(d.id)}" title="Edit">Edit</button>
+				<button class="icon-btn danger" data-del-debt="${esc(d.id)}" data-name="${esc(d.name)}" title="Delete">Delete</button>
+			</div></td></tr>`,
 		)
 		.join("");
 }
@@ -103,15 +199,21 @@ function render(d) {
 				<tbody>${kindRows(d.assets_by_kind, Number(d.total_assets))}</tbody></table>
 			</div>
 			<div class="card">
-				<h2>Liabilities · ${d.debts.length}</h2>
-				<table><thead><tr><th>Debt</th><th class="num">APR</th><th class="num">Balance</th></tr></thead>
+				<div class="section-head">
+					<h2>Liabilities · ${d.debts.length}</h2>
+					<button class="btn small" id="add-debt">+ Add debt</button>
+				</div>
+				<table><thead><tr><th>Debt</th><th class="num">APR</th><th class="num">Balance</th><th></th></tr></thead>
 				<tbody>${debtRows(d.debts)}</tbody></table>
 			</div>
 		</div>
 
 		<div class="card">
-			<h2>Holdings · ${d.assets.length}</h2>
-			<table><thead><tr><th>Asset</th><th>Type</th><th class="num">Value</th></tr></thead>
+			<div class="section-head">
+				<h2>Holdings · ${d.assets.length}</h2>
+				<button class="btn small" id="add-asset">+ Add asset</button>
+			</div>
+			<table><thead><tr><th>Asset</th><th>Type</th><th class="num">Value</th><th></th></tr></thead>
 			<tbody>${assetRows(d.assets)}</tbody></table>
 		</div>
 	`;
@@ -121,24 +223,37 @@ function render(d) {
 		e.target.textContent = "Saving…";
 		try {
 			await fetchApi("/api/networth/snapshot", { method: "POST" });
+			toast("Snapshot saved");
 			await load();
 		} catch (err) {
 			e.target.disabled = false;
 			e.target.textContent = "Snapshot today";
-			alert(`Could not save snapshot: ${err.message}`);
+			toast(`Could not save snapshot: ${err.message}`, "err");
 		}
 	};
-}
 
-async function load() {
-	const app = document.getElementById("app");
-	try {
-		const res = await fetchApi("/api/networth");
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		render(await res.json());
-	} catch (err) {
-		app.innerHTML = `<div class="card">Couldn't load net worth: ${esc(err.message)}</div>`;
-	}
+	wireCrud(
+		"assets",
+		"asset",
+		ASSET_FIELDS,
+		d.assets,
+		{
+			add: "add-asset",
+			edit: "data-edit-asset",
+			del: "data-del-asset",
+		},
+		load,
+	);
+	wireCrud(
+		"debts",
+		"debt",
+		DEBT_FIELDS,
+		d.debts,
+		{
+			add: "add-debt",
+			edit: "data-edit-debt",
+			del: "data-del-debt",
+		},
+		load,
+	);
 }
-
-document.addEventListener("DOMContentLoaded", load);
