@@ -1,5 +1,5 @@
 """Serves the single-page dashboard's HTML entry point."""
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
@@ -21,7 +21,12 @@ def tracker():
 
 @router.get("/data")
 def data_admin():
-    """Generic data admin — view/add/edit/delete rows for every entity."""
+    """Raw table console (developer surface) — only served when DEV_MODE=true.
+
+    It exposes database table and column names directly, so it stays off in a normal
+    deployment; the product UI covers everything a user needs."""
+    if not get_settings().dev_mode:
+        raise HTTPException(404, "Not Found")
     return FileResponse(get_settings().dashboard_dir / "data.html")
 
 

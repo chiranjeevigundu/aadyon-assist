@@ -540,6 +540,9 @@ Every non-obvious design decision, made explicit:
 - **Server (production)** — an always-on Linux box running the full Compose stack, reachable
   over your tailnet. This is where the real data lives.
 - **Dev machine** — same stack via `just up`; API on `localhost:8000`.
+- **Kubernetes (optional)** — the same image also runs as real k8s workloads (api +
+  briefing Deployments, Postgres StatefulSet, migrate Job) against a local k3s cluster.
+  One command: `./deploy/k8s/deploy.sh`. See [deploy/k8s/README.md](../deploy/k8s/README.md).
 
 ### 7.2 Deploy a change
 
@@ -601,6 +604,7 @@ Set in `.env` (see `.env.example`); secrets preferred via files in `secrets/`.
 | `API_PORT` | Host port for the API | 8000 |
 | `TZ` / `BRIEFING_HOUR` | Timezone / daily briefing hour | `UTC` / 7 |
 | `INVITE_REQUIRED` | Gate signup behind an invite code | `true` |
+| `DEV_MODE` | Serve developer surfaces (`/data` raw table console, `/docs`, `/redoc`, `/openapi.json`) and link them in the nav. Off = product UI only. | `false` |
 | `AGENT_MAX_STEPS` | Bound on the assistant's tool-calling loop per turn | 6 |
 | `OPENROUTER_API_KEY` | Cloud model access (or `secrets/openrouter_api_key.txt`) | — |
 | `OPENROUTER_BASE_URL` | OpenRouter endpoint | `https://openrouter.ai/api/v1` |

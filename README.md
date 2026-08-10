@@ -154,6 +154,16 @@ To re-init from scratch: `docker compose down -v` (wipes the DB volume) then `ju
 `just backup-now && just migrate-baseline` (records the already-applied schema in the ledger
 without re-running it); from then on `just migrate` applies only new files.
 
+## Running on Kubernetes (optional)
+
+Compose is the simplest way to run this. If you'd rather exercise the Kubernetes path —
+a realistic dry-run of deploying to EKS, using a local k3s cluster — see
+[deploy/k8s/README.md](deploy/k8s/README.md):
+
+```bash
+./deploy/k8s/deploy.sh
+```
+
 ## Automation
 
 The stack runs and maintains itself:

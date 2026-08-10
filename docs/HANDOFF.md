@@ -8,7 +8,50 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-09) — SYSTEM DESIGN pass on docs/SYSTEM.md (branch `claude/system-design`)
+## Latest session (2026-08-10) — production UI + Kubernetes deployment (branch `claude/production-ui-and-k8s`)
+
+Owner: "structure it so anyone can implement it, don't expose dev components, make it look like
+a production app" — then, later, commit the work and make the k8s deployment reproducible.
+
+**Production UI (commit 1).** Key finding first: `/data` (the raw table console) was the *only*
+way to add an asset/debt/bill — Net Worth had just a snapshot button, Tracker was read-only — so
+hiding dev surfaces required building the product UI first.
+- New `DEV_MODE` setting (default **false**): `/data` 404s, FastAPI's `/docs`/`/redoc`/
+  `/openapi.json` are disabled at app construction, and the nav omits both. Verified both
+  directions (a `DEV_MODE=true` container serves all of them).
+- New public `GET /api/app-config` returns only `{dev_mode, invite_required}` so the frontend
+  renders the right chrome without hardcoding policy.
+- Full add/edit/delete on Net Worth (assets, debts) and Tracker (bills, subscriptions,
+  deadlines), built on shared `openForm()`/`confirmAction()`/`toast()`/`wireCrud()` helpers in
+  `base.js` — a new entity is a field list, not new plumbing.
+- **Fixed a login redirect loop** the owner hit: `login.js` trusted any stored token and
+  redirected to `/`, which 401'd and bounced back forever once a token went stale (the k8s
+  cluster has a different JWT secret than the old Compose instance). It now validates against
+  `/api/auth/me` and clears a rejected token; `logout()` also won't redirect if already on
+  `/login`. **Note for future sessions: I first dismissed this as a browser-tooling artifact —
+  it was real. Reproduce loops by watching `kubectl logs deploy/api`, which shows the cycle.**
+
+**Kubernetes deployment (commit 2).** `deploy/k8s/` — manifests + a one-command idempotent
+`deploy.sh` + README. Previously the manifests lived only in a scratch dir, so the cluster
+deployment was not reproducible from a clone.
+- Externalized the two machine-specific values: the image ref (`__IMAGE__` placeholder) and the
+  S3 endpoint (now an `aadyon-env` ConfigMap the script fills by **discovering the Floci
+  container's IP** — it was a hardcoded `172.20.0.2`).
+- Secrets are generated **once** and never rotated on re-run, so redeploys don't orphan the
+  Postgres volume or invalidate sessions.
+- **Two Windows portability bugs found by actually running the script** (not by reading it):
+  `KUBECONFIG` needs `;` + native paths for the Windows `kubectl` binary, and `docker build`
+  needs native host paths even with `MSYS_NO_PATHCONV=1` set for container paths. Both fixed
+  with a `to_native()` helper.
+- Verified: full end-to-end run rebuilds, rolls out, proxies, and health-checks green.
+
+**Still true / worth knowing:** the running deployment is k8s-on-Floci; Compose remains the
+simple path and both are documented. Floci's `floci` container needs `/var/run/docker.sock`
+mounted to create clusters (local override, not committed to their repo).
+
+---
+
+## Earlier session (2026-08-09) — SYSTEM DESIGN pass on docs/SYSTEM.md (branch `claude/system-design`)
 
 Owner asked to "do the system design." Scoped it (asked, didn't assume): document/review the
 **current** system, output as an update **to `docs/SYSTEM.md` + diagrams in place** (not a new
