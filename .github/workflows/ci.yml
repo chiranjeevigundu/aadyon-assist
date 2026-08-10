@@ -57,7 +57,9 @@ jobs:
           printf 'ci' > secrets/s3_secret_key.txt
           printf '' > secrets/resend_api_key.txt
           # INVITE_REQUIRED=false so the throwaway signup below needs no invite code.
-          printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\nINVITE_REQUIRED=false\n' > .env
+          # DEV_MODE=true because the contract-fuzz step below reads /openapi.json,
+          # which is a developer surface and is disabled in a normal deployment.
+          printf 'POSTGRES_USER=aadyon\nPOSTGRES_DB=aadyon_assist\nAPI_PORT=8000\nTZ=UTC\nINVITE_REQUIRED=false\nDEV_MODE=true\n' > .env
       - name: Build & start db + migrations + api (healthcheck-gated)
         run: docker compose up -d --build --wait db migrate api
       - name: "Hit key endpoints (multi-user: sign up, then use the token)"
