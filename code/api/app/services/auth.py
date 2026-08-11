@@ -157,6 +157,16 @@ def mark_email_verified(user_id) -> None:
 
 
 # --------------------------------------------------------------------------- invites
+def has_any_user() -> bool:
+    """True once at least one account exists.
+
+    Used to bootstrap a fresh instance: minting an invite requires being signed in,
+    so on an empty database an invite requirement would lock everyone out — there is
+    nobody who could issue the first code. The first signup is therefore allowed
+    through; every later one still needs an invite when INVITE_REQUIRED is on."""
+    return bool(query_unscoped("SELECT 1 FROM users LIMIT 1"))
+
+
 def consume_invite(code: str) -> None:
     """Validate an unused, unexpired invite code and mark it pending-use. Raises
     AuthError if invalid. (Marked used_by after the account is actually created.)"""

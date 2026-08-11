@@ -74,14 +74,18 @@ def signup(payload: dict, request: Request):
     s = get_settings()
     payload = payload or {}
     try:
-        if s.invite_required:
+        # The first account on an empty instance is always allowed: issuing an invite
+        # requires being signed in, so requiring one here would leave a fresh install
+        # with no way to create any account at all.
+        needs_invite = s.invite_required and auth.has_any_user()
+        if needs_invite:
             auth.consume_invite(payload.get("invite_code", ""))
         user = auth.create_user(
             payload.get("email", ""),
             payload.get("password", ""),
             payload.get("display_name"),
         )
-        if s.invite_required:
+        if needs_invite:
             auth.mark_invite_used(payload.get("invite_code", ""), user["id"])
         token = auth.make_token(user["id"])
     # ValueError: psycopg2 rejects values Postgres can't store (e.g. NUL bytes).

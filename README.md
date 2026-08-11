@@ -3,216 +3,192 @@
 [![CI](https://github.com/chiranjeevigundu/aadyon-assist/actions/workflows/ci.yml/badge.svg)](https://github.com/chiranjeevigundu/aadyon-assist/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A **self-hosted, multi-user personal finance tracker** with a conversational AI assistant.
-One Postgres source of truth for your **net worth** — assets, debts, bills, subscriptions,
-income, and transactions — plus an email/document-ingest pipeline that turns statements and
-inbox noise into reviewable entries, and an assistant that can read your finances and act on
-them (with your approval for anything that touches the real world).
+**Self-hosted personal finance tracking, with an AI assistant that can't spend your money.**
 
-> Track-first. The tool gets the numbers out of your head and into one place; it never moves
-> money on its own. Anyone can self-host it — nothing here is tied to a specific person.
+Track your **net worth** — assets minus debts — in one place you own. Forward a statement or
+connect a mailbox and it extracts the figures for you to approve. Ask the assistant questions in
+plain language and it answers from your real numbers.
 
-## Net worth (the front door)
+Everything runs on your own machine. No accounts, no telemetry, no third party sees your finances.
 
-`http://localhost:8000` opens the **Net Worth** view: **assets − liabilities**, at a glance.
+```bash
+git clone https://github.com/chiranjeevigundu/aadyon-assist.git
+cd aadyon-assist && just bootstrap-dev && just up
+# open http://localhost:8000 and sign up
+```
 
-- **Assets** (holdings) — cash, investments, retirement, property, vehicles, crypto — in the
-  `assets` table; **liabilities** are your `debts`.
-- **Net worth = total assets − total liabilities**, with a breakdown by asset type and a
-  **trend** you build by snapshotting over time (`net_worth_snapshots`, one row per day).
-- Endpoints: `GET /api/networth` (totals + breakdown + history), `POST /api/networth/snapshot`.
+---
 
-## Tracker (`/tracker`)
+## Is this for you?
 
-The cash-flow view: **debts** with payoff order and interest math, **bills**, **subscriptions**,
-upcoming **deadlines**, and **income** (jobs + shifts).
+**A good fit if** you want your financial picture in one place, on hardware you control, and
+you're comfortable running Docker.
 
-## Assistant (`/assistant`)
+**Not a good fit if** you want a hosted app with no setup, automatic bank syncing via Plaid, tax
+filing, or investment advice. This tracks what you tell it (or what it reads from your documents
+and mail); it does not connect to brokerages, and it never gives financial advice.
 
-A chat that reads your finances and can **directly update your own records** ("add my brokerage
-account worth $25k", "mark the Netflix subscription inactive", "log a $3,000 card balance at
-19.9% APR"). It always pulls real numbers via a net-worth snapshot rather than guessing.
+> **Project status:** actively developed, used daily by its author. It is a personal-scale tool —
+> designed for one person or a family, not a multi-tenant service. Expect rough edges, and read
+> [SECURITY.md](SECURITY.md) before exposing it to the internet (short version: don't — put it
+> behind [Tailscale](docs/TAILSCALE.md)).
 
-Anything with a real-world **external** side effect — moving money, sending an email, paying a
-bill — comes back as a **proposal you approve** (the `proposals` table); it never auto-executes.
-The assistant can also read a **document you upload** to pull figures from a statement.
+## What you get
 
-## Data admin (`/data`)
+| | |
+|---|---|
+| **Net worth** (`/`) | Assets − liabilities at a glance, broken down by type, with a trend you build by snapshotting over time. Add, edit and delete holdings and debts inline. |
+| **Tracker** (`/tracker`) | Cash flow: debts in payoff order with interest math, bills, subscriptions, deadlines, and income. Full add/edit/delete. |
+| **Assistant** (`/assistant`) | Chat that reads your real figures — "what's my net worth?", "which debt should I clear first?" — and can update your records for you. |
+| **Accounts** (`/accounts`) | Connect mailboxes (read-only) and upload statements; extracted items land in a review queue. |
 
-A no-Swagger web console to **view, add, edit, and delete** rows for every entity (assets, debts,
-bills, subscriptions, income, bank accounts/transactions, documents, deadlines, profile). It
-builds typed forms automatically from the live schema (`GET /api/entities`, which reads column
-types from `information_schema`), so it stays in sync with the database with zero hardcoding.
+### The safety rule
 
-## Email & document ingestion (`/accounts`)
+The assistant can freely edit **your own records** — add an asset, mark a subscription inactive.
+But anything with a **real-world effect** — moving money, sending an email, paying a bill — is
+written to a **proposals queue for you to approve**. It never executes on its own. That boundary
+is deliberate and enforced in code, not prompt instructions.
 
-Feed financial data in from your existing sources — nothing is auto-applied; you **Approve**
-(it becomes a real `bank_transaction` / `bill` / entry) or **Dismiss**.
+## Requirements
 
-- **Email** — reads mail **read-only**, runs each new message through the model to extract
-  financial items (transactions, bills, statements) into a review queue. iCloud/Gmail via
-  **IMAP app-password**; Outlook via **Microsoft Graph device-code**; Gmail also via OAuth.
-- **Documents** — upload bank/brokerage statements and receipts; text + vision extraction
-  queues the figures. Stored in S3-compatible object storage (see
-  [docs/cloud-storage.md](docs/cloud-storage.md)).
+- **Docker** with Compose
+- **[just](https://github.com/casey/just)** — `brew install just` · `winget install Casey.Just` · `apt install just`
+- ~2 GB disk. No cloud account needed.
+- *Optional:* an [OpenRouter](https://openrouter.ai) key for the assistant, or
+  [Ollama](https://ollama.com) to run a model locally.
 
-Stored credentials are **Fernet-encrypted** at rest, and each account keeps a sync cursor.
-Syncs run with the morning briefing or on demand.
+## Install
 
-## Assistant model routing
+```bash
+git clone https://github.com/chiranjeevigundu/aadyon-assist.git
+cd aadyon-assist
 
-The assistant routes to a model by *tier* (`reasoning` / `cheap` / `local`), configured in
-`.env` — no DB table to manage. Defaults: `reasoning → openrouter/auto` (OpenRouter picks the
-best provider/model), `cheap → openai/gpt-4o-mini`, `local → ollama/llama3.1`.
+just bootstrap-dev     # writes .env and generates secrets/ (never overwrites existing ones)
+just up                # builds, applies migrations, starts everything
+```
 
-**To enable it:** add your OpenRouter key to `.env` as `OPENROUTER_API_KEY=...` (or
-`secrets/openrouter_api_key.txt`) and restart. Optional: run **Ollama** on the host for the
-`local` tier. Until a key is present, the chat replies with a clear message — nothing crashes.
+Open **http://localhost:8000** and create your account. The first account on a fresh instance can
+always sign up. After that, `INVITE_REQUIRED` decides whether new accounts need an invite code —
+there's no UI for minting one yet, so use the API from a signed-in account:
 
-## Morning briefing → phone
+```bash
+curl -X POST http://localhost:8000/api/auth/invites \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}'
+```
 
-The `briefing` service writes `artifacts/briefing-*.md` daily (upcoming bills, debt/interest
-summary, pending proposals) and pushes it to a **self-hosted ntfy** server, delivered to your
-phone over Tailscale. Content stays on the tailnet; only the iOS background wake is proxied via
-`ntfy.sh`. Set `NTFY_TOPIC` in `.env` to enable.
+To start over completely: `docker compose down -v && just up` (this destroys the database).
+
+### Turning on the assistant
+
+The assistant needs a model. Put an OpenRouter key in `.env`:
+
+```bash
+OPENROUTER_API_KEY=sk-or-...
+```
+
+…or run [Ollama](https://ollama.com) locally and set `OLLAMA_BASE_URL`. Without a key the app
+works fine — the chat just tells you it isn't configured.
+
+## Configuration
+
+Everything lives in `.env` (start from `.env.example`). Secrets are read from `secrets/*.txt`
+first, then the environment.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `API_PORT` | `8000` | Host port for the web app |
+| `TZ` / `BRIEFING_HOUR` | `UTC` / `7` | Timezone, and when the daily briefing is written |
+| `INVITE_REQUIRED` | `true` | Require an invite code to register (the first account is always allowed) |
+| `DEV_MODE` | `false` | Expose developer tools — see below. Leave off in normal use |
+| `OPENROUTER_API_KEY` | — | Enables the assistant |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Local model endpoint |
+| `STORAGE_BACKEND` | `local` | `local` disk, or `s3` for object storage |
+| `S3_ENDPOINT_URL` | — | Set for an S3 emulator; leave empty for real AWS |
+| `EMAIL_ENC_KEY` | — | Fernet key encrypting stored mailbox credentials |
+| `NTFY_TOPIC` | — | Enables the morning push to your phone |
+
+Full list: [`.env.example`](.env.example) · storage details: [docs/cloud-storage.md](docs/cloud-storage.md)
+
+### Developer mode
+
+`DEV_MODE=true` additionally serves:
+
+- `/data` — a raw table console for every entity, built from the live schema
+- `/docs`, `/redoc`, `/openapi.json` — FastAPI's generated API reference
+
+These are **off by default and return 404**, because they expose database structure directly.
+Everything a normal user needs is in the product UI. Never enable this on an internet-facing
+instance.
+
+## How it works
+
+Six containers, one Postgres database as the single source of truth:
+
+| Service | Role |
+|---|---|
+| `api` | FastAPI — REST API and the dashboards |
+| `db` | Postgres 16 + pgvector |
+| `migrate` | Applies schema migrations on startup, then exits |
+| `briefing` | Writes the daily digest and pushes it to your phone |
+| `backup` | Nightly `pg_dump`, 14-day retention |
+| `ntfy` | Self-hosted push notifications |
+
+Accounts are isolated **in the database** by Postgres row-level security, not just in
+application code — a missing user sees zero rows rather than everything.
+
+Architecture in depth: **[docs/SYSTEM.md](docs/SYSTEM.md)** · diagrams:
+**[docs/architecture.md](docs/architecture.md)**
+
+## Everyday commands
+
+```bash
+just up          # start everything          just down        # stop
+just logs        # follow logs               just test        # run the test suite
+just lint        # ruff + Biome              just migrate     # apply new migrations
+just backup-now  # dump the database         just restore <f> # restore a dump
+just --list      # everything else
+```
 
 ## Documentation
 
-- **[docs/architecture.md](docs/architecture.md)** — system + service diagrams.
-- **[SYSTEM.md](docs/SYSTEM.md)** — full architecture: components, data flows, data model, security,
-  deployment, and operations runbook.
-- **[docs/cloud-storage.md](docs/cloud-storage.md)** — object storage: real AWS ⇄ local emulator.
-- **[docs/CLOUD.md](docs/CLOUD.md)** — moving to a managed cloud platform.
-- **[TAILSCALE.md](docs/TAILSCALE.md)** — remote-access setup.
+| Doc | For |
+|---|---|
+| [docs/SYSTEM.md](docs/SYSTEM.md) | Full system design: requirements, data model, trade-offs, scaling |
+| [docs/architecture.md](docs/architecture.md) | Rendered architecture diagrams |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up to develop, and how to send a change |
+| [SECURITY.md](SECURITY.md) | Security model and how to report a vulnerability |
+| [docs/TAILSCALE.md](docs/TAILSCALE.md) | Reaching the app from your phone, safely |
+| [docs/cloud-storage.md](docs/cloud-storage.md) | Object storage: real AWS ⇄ local emulator |
+| [docs/CLOUD.md](docs/CLOUD.md) | Moving to a managed cloud platform |
+| [deploy/k8s/README.md](deploy/k8s/README.md) | Running on Kubernetes instead of Compose |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What's planned |
 
-## Stack
+## Troubleshooting
 
-- **Postgres 16 + pgvector** — relational data now, vector memory ready for later RAG.
-- **FastAPI (Python)** — REST API + serves the dashboards; **LiteLLM** for model access;
-  **boto3** for S3-compatible storage; **yoyo-migrations** for plain-SQL schema migrations.
-- **Docker Compose** — services: `db`, `migrate`, `api`, `briefing`, `backup`, `ntfy`.
-  DB password and API keys via **Docker secrets**. Tasks via **just** (`just --list`).
-- **Vanilla HTML/JS dashboards** — no build step, served by the API; shared CSS/JS in `/static`,
-  installable as a PWA.
-- **Multi-user** — JWT bearer auth (`POST /api/auth/login`); every account is isolated at the
-  database by Postgres **Row-Level Security**. `/api/health` and `/api/auth/*` are the only
-  public routes.
-- **Self-hosted** on any always-on Linux box, reachable over **Tailscale**; identical stack on
-  a dev machine.
+**`just: command not found`** — install [just](https://github.com/casey/just), or run the
+underlying `docker compose` commands directly (see the `justfile`).
 
-## Layout
+**The page won't load** — check the stack is healthy with `docker compose ps`; `api` and `db`
+should be `healthy`. `just logs` shows why if not.
 
-```
-aadyon-assist/
-  code/
-    api/            FastAPI app (Dockerfile, requirements.txt)
-      app/
-        main.py       create_app() factory — wires routers + static mount
-        core/         config.py — settings + DB password (Docker secret aware)
-        db/           session.py — connection pool + query() helper (RLS-scoped)
-        models/       tables.py — Entity registry (tables + writable columns)
-        routers/      crud.py (factory), system.py, auth.py, networth.py, bank.py,
-                      email.py, documents.py, assistant.py, dashboard.py
-        services/     networth, summary, routing/llm/tools, assistant, auth, crypto,
-                      storage, bank_*, email_* (extract/store/imap/graph/ingest),
-                      document_*, ms_graph, google_oauth, mailer, notify
-        jobs/         briefing_loop, backup_sync, import_entities (each a worker)
-    db/migrations/  plain-SQL migrations (applied by yoyo; `just new-migration <name>`)
-    db/init/        your personal seed SQL (gitignored)
-    dashboard/      pages: networth (home), index (tracker), data, accounts + assets/
-  artifacts/        briefings, uploads (gitignored)
-  data/             local Postgres volume + exports (gitignored)
-  justfile          task runner (up/down/test/lint/migrate/backup/…)
-  docker-compose.yml
-  .env.example      copy to .env
-```
+**"an invite code is required" on signup** — an account already exists on this instance. Sign in
+with it and mint an invite, or set `INVITE_REQUIRED=false` in `.env` and restart.
 
-## Run it
+**The assistant says it isn't configured** — no model key. Add `OPENROUTER_API_KEY` to `.env`
+and `just up` again.
 
-Prereqs: Docker (with Compose) and [`just`](https://github.com/casey/just)
-(`brew install just` · `winget install Casey.Just` · apt/dnf).
+**`/data` or `/docs` returns 404** — that's intentional; set `DEV_MODE=true` to enable them.
 
-1. Copy env + create the secrets:
-   ```bash
-   cp .env.example .env
-   mkdir -p secrets
-   # pick a strong DB password:
-   printf 'change-me-strong-password' > secrets/db_password.txt
-   # signing key for login tokens (multi-user auth):
-   python -c "import secrets; print(secrets.token_urlsafe(48))" > secrets/jwt_secret.txt
-   ```
-2. Start (migrations apply automatically via the one-shot `migrate` service):
-   ```bash
-   just up          # = docker compose up -d --build
-   ```
-3. Open the dashboard: http://localhost:8000 · API docs (Swagger): http://localhost:8000/docs
+**Port 8000 already in use** — set `API_PORT` in `.env`.
 
-`just --list` shows every recipe (logs, test, lint, migrate, backup, restore…).
-To re-init from scratch: `docker compose down -v` (wipes the DB volume) then `just up`.
+Still stuck? [Open an issue](https://github.com/chiranjeevigundu/aadyon-assist/issues) with what
+you ran and what you saw.
 
-**Upgrading a database created before yoyo-migrations?** Baseline it once:
-`just backup-now && just migrate-baseline` (records the already-applied schema in the ledger
-without re-running it); from then on `just migrate` applies only new files.
+## Contributing
 
-## Running on Kubernetes (optional)
-
-Compose is the simplest way to run this. If you'd rather exercise the Kubernetes path —
-a realistic dry-run of deploying to EKS, using a local k3s cluster — see
-[deploy/k8s/README.md](deploy/k8s/README.md):
-
-```bash
-./deploy/k8s/deploy.sh
-```
-
-## Automation
-
-The stack runs and maintains itself:
-
-- **Daily briefing** — the `briefing` service (APScheduler cron) writes
-  `artifacts/briefing-YYYY-MM-DD.md` (and `briefing-latest.md`) once on start and again each day
-  at `BRIEFING_HOUR` (default 07:00, `TZ` from `.env`). On-demand: `GET /api/briefing`.
-- **Nightly DB backup** — the `backup` service (postgres-backup-local) writes gzipped dumps under
-  `data/exports/daily/`, keeping 14 days. On-demand: `just backup-now`; restore: `just restore <file>`.
-- **Stays up unattended** — long-running services use `restart: unless-stopped`, and `db` + `api`
-  have healthchecks.
-
-Tunables in `.env`: `BRIEFING_HOUR`, `TZ`, `API_PORT`.
-
-### Importing entries from your data
-
-The app can ingest entities you (or an AI assistant) extract from statements or documents:
-
-1. Write the items to `artifacts/inbox.json` — a list of `{"table": "...", "data": {...}}`
-   (tables: assets, debts, bills, subscriptions, deadlines; only whitelisted columns are used).
-2. Run `just import`. It de-duplicates by natural key (so re-running is safe) and archives the
-   processed file + a result log to `artifacts/imported/`.
-
-## Development vs. production environments
-
-`docker-compose.yml` is the production definition — it's what runs on the always-on server.
-`docker-compose.dev.yml` is an additive overlay for local iteration (hot-reload API via bind
-mount + `--reload`, Postgres port published to the host for psql/GUI access, skips `backup`/`ntfy`
-since dev data is throwaway). Both read from `.env` + `secrets/*.txt` on whichever machine you're
-on — those are gitignored per-machine state.
-
-```bash
-just bootstrap-dev  && just up-dev    # local dev: hot reload, exposed DB port, no backup/ntfy
-just bootstrap-prod && just up-prod   # production: matches the deployed server exactly
-```
-
-## Moving between machines
-
-The schema in `code/db/migrations/` is the contract. `pg_dump`/`pg_restore` the data, point the
-same compose file at the new volume, run `just migrate-baseline` once, and everything ports as-is.
-
-## Contributing & security
-
-- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, tests, PR flow. [SECURITY.md](SECURITY.md) —
-  reporting + the security model.
-- `.env`, `secrets/`, and `code/db/init/` are gitignored — keep them that way; gitleaks guards
-  CI and pre-commit. Never commit personal or financial data.
-- The action layer is human-in-the-loop by design: no autonomous money or email actions.
+Contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**. Bug reports and
+"this was confusing" feedback are just as useful as code.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Do what you like with it; no warranty.

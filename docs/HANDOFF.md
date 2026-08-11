@@ -8,7 +8,43 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-10) — production UI + Kubernetes deployment (branch `claude/production-ui-and-k8s`)
+## Latest session (2026-08-10) — docs pass for open-source visitors + first-run fix (branch `claude/docs-and-first-run`)
+
+Owner: "work on all documentation for everyone visiting this repo." Audited the docs against the
+code first, which surfaced a **critical first-run bug** that mattered more than the prose:
+
+**A fresh clone was unusable.** `.env.example` didn't set `INVITE_REQUIRED`, so the config default
+(`true`) applied — but minting an invite needs `Depends(get_current_user)`. Signup required an
+invite; getting an invite required an account. Deadlock; nobody could create the first account.
+Fixed in `services/auth.has_any_user()` + `routers/auth.signup`: the first account on an empty
+instance always bypasses the invite check, every later one still needs it. 2 tests, plus a live
+test on the cluster with `INVITE_REQUIRED=true` (first signup succeeded, second correctly refused).
+
+**Also found: `deploy.sh` silently shipped stale code.** The manifests used
+`imagePullPolicy: IfNotPresent` with the mutable `:latest` tag, so k3s kept the cached image and
+a redeploy ran old code — I hit this while testing the fix above. Changed to `Always` (local
+registry, so re-pulling is free).
+
+**Docs (the actual ask):**
+- **README rewritten** as a visitor front door. Fixed two things that were actively wrong: it
+  documented `/data` and `/docs` as normal features, but both 404 by default since `DEV_MODE`
+  landed. Added: who it's for / who it isn't, project status, a config table, a developer-mode
+  section, everyday commands, and troubleshooting.
+- **CONTRIBUTING rewritten** — ways to help, an explicit *out of scope* list, setup, PR checklist,
+  a section for AI agents, and code style.
+- **New `docs/README.md`** — an index so `docs/` is navigable.
+- `INVITE_REQUIRED` documented in `.env.example`.
+
+Verified mechanically, not by eye: every markdown link resolves, every `just` recipe referenced
+exists, every env var in the README table is real, every endpoint and compose service named
+exists. 172 tests, ruff + Biome clean.
+
+**Caveat: no screenshots.** The README describes the UI in prose; real screenshots would help a
+visitor a lot and are the obvious next docs improvement.
+
+---
+
+## Earlier session (2026-08-10) — production UI + Kubernetes deployment (branch `claude/production-ui-and-k8s`)
 
 Owner: "structure it so anyone can implement it, don't expose dev components, make it look like
 a production app" — then, later, commit the work and make the k8s deployment reproducible.

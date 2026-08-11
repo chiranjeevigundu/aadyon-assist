@@ -277,10 +277,13 @@ function openForm({ title, fields, values = {}, submitLabel = "Save" }) {
 			for (const f of fields) {
 				const el2 = wrap.querySelector(`#f_${f.name}`);
 				if (!el2) continue;
+				// `emptyAs` is for columns that are NOT NULL with a default: a
+				// blank box there means "the default", not "null".
+				const blank = f.emptyAs !== undefined ? f.emptyAs : null;
 				if (f.type === "checkbox") out[f.name] = el2.checked;
 				else if (f.type === "money" || f.type === "number")
-					out[f.name] = el2.value === "" ? null : Number(el2.value);
-				else out[f.name] = el2.value === "" ? null : el2.value;
+					out[f.name] = el2.value === "" ? blank : Number(el2.value);
+				else out[f.name] = el2.value === "" ? blank : el2.value;
 			}
 			close(out);
 		};
@@ -320,12 +323,31 @@ function confirmAction(message) {
 
 /* ------------------------------------------------------------- CRUD helpers */
 // Thin wrappers over the generic entity API so pages read declaratively.
+/* Turn an error response into something worth showing a user. The API returns
+ * {"detail": "..."}; anything else falls back to the status line. */
+async function apiError(res) {
+	const body = await res.text();
+	try {
+		const d = JSON.parse(body).detail;
+		if (d) return new Error(String(d).trim());
+	} catch {
+		/* not JSON — fall through */
+	}
+	return new Error(body.trim() || `HTTP ${res.status}`);
+}
+
 async function apiCreate(entity, payload) {
+	// Drop blank optional fields rather than POSTing explicit nulls: several
+	// columns are NOT NULL with a default, and a null would violate them.
+	// PATCH keeps its nulls, where clearing a field is the intent.
+	const body = Object.fromEntries(
+		Object.entries(payload).filter(([, v]) => v !== null),
+	);
 	const res = await fetchApi(`/api/${entity}`, {
 		method: "POST",
-		body: JSON.stringify(payload),
+		body: JSON.stringify(body),
 	});
-	if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+	if (!res.ok) throw await apiError(res);
 	return res.json();
 }
 async function apiUpdate(entity, id, payload) {
@@ -333,12 +355,12 @@ async function apiUpdate(entity, id, payload) {
 		method: "PATCH",
 		body: JSON.stringify(payload),
 	});
-	if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+	if (!res.ok) throw await apiError(res);
 	return res.json();
 }
 async function apiDelete(entity, id) {
 	const res = await fetchApi(`/api/${entity}/${id}`, { method: "DELETE" });
-	if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+	if (!res.ok) throw await apiError(res);
 }
 
 /* Wire add/edit/delete for one entity. Kept generic so both assets and debts

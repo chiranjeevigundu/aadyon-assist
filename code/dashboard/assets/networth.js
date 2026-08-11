@@ -126,8 +126,13 @@ const DEBT_FIELDS = [
 		type: "number",
 		step: "0.01",
 		placeholder: "e.g. 19.99",
+		// NOT NULL in the schema, but an interest-free debt is a real thing:
+		// leaving the box empty means 0%, not "unknown".
+		emptyAs: 0,
+		help: "Leave blank for an interest-free debt.",
 	},
-	{ name: "min_payment", label: "Minimum payment", type: "money" },
+	// NOT NULL DEFAULT 0 in the schema — a blank box has to mean 0, not null.
+	{ name: "min_payment", label: "Minimum payment", type: "money", emptyAs: 0 },
 	{
 		name: "credit_limit",
 		label: "Credit limit",
