@@ -11,11 +11,26 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from app.core.config import get_settings
 
 router = APIRouter(tags=["dashboard"])
+
+
+@router.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    """The PWA manifest, served from the root.
+
+    It declares `"scope": "/"`, and a manifest can only claim a scope at or below
+    its own URL — served from /static/ the whole app would fall outside it. Root is
+    also where iOS and Android look by convention.
+    """
+    return FileResponse(
+        get_settings().dashboard_dir / "manifest.webmanifest",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @lru_cache(maxsize=1)
