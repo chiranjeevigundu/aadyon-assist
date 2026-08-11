@@ -180,7 +180,7 @@ column whitelist (`id`, `created_at`, `updated_at` are DB-managed and never writ
 admin UI builds typed forms from `/api/entities`, which reads column types, nullability, and
 foreign keys live from `information_schema` — so the admin stays in sync with the DB with zero
 hardcoding. Not every table goes through this registry — `users`, `conversations`, `messages`,
-`memory_chunks`, and `invite_codes` are managed by dedicated service code (auth, assistant) that
+and `memory_chunks` are managed by dedicated service code (auth, assistant) that
 needs behavior the generic factory doesn't provide (password hashing, JWT minting, the tool
 loop) — see §3.1.
 
@@ -271,13 +271,12 @@ Personal seed data is **not** a migration: it lives in the gitignored `code/db/i
 supplied per-deployment. Every application table has DB-managed `id` (UUID), `created_at`, and
 `updated_at`.
 
-**Identity & auth** *(not per-user by definition — `users` and `invite_codes` are the two global,
-non-RLS tables in the schema, accessed via `query_unscoped()`)*
+**Identity & auth** *(not per-user by definition — `users` is the one global, non-RLS table in
+the schema, accessed via `query_unscoped()`)*
 
 | Table | Purpose | Notable columns |
 |---|---|---|
 | `users` | Accounts | email, password_hash, display_name, email_verified, ntfy_topic, monthly_token_budget, tokens_used, usage_period_start |
-| `invite_codes` | Optional signup gating (`INVITE_REQUIRED`) | code, note, created_by, used_by, used_at, expires_at |
 
 **Net worth & finance core**
 
@@ -513,7 +512,7 @@ Every non-obvious design decision, made explicit:
   unset user sees zero rows). `/api/health` and `/api/auth/*` are the only public routes. Tailscale
   remains a strong second layer, but auth+RLS is the isolation contract, so cautious public exposure
   is possible. `db/session.py` sets the GUC per transaction (transaction-local, cleared each query);
-  `query_unscoped()` is reserved for the two global (non-RLS) tables, `users` and `invite_codes`.
+  `query_unscoped()` is reserved for the one global (non-RLS) table, `users`.
 - **Action boundary.** The assistant writes the user's *own* records directly (create/update/delete
   assets, debts, bills, subscriptions, deadlines, profile). External side effects — money, email,
   payments — still route through `propose_action` → the `proposals` queue for explicit human sign-off.
@@ -603,7 +602,6 @@ Set in `.env` (see `.env.example`); secrets preferred via files in `secrets/`.
 |---|---|---|
 | `API_PORT` | Host port for the API | 8000 |
 | `TZ` / `BRIEFING_HOUR` | Timezone / daily briefing hour | `UTC` / 7 |
-| `INVITE_REQUIRED` | Gate signup behind an invite code | `true` |
 | `DEV_MODE` | Serve developer surfaces (`/data` raw table console, `/docs`, `/redoc`, `/openapi.json`) and link them in the nav. Off = product UI only. | `false` |
 | `AGENT_MAX_STEPS` | Bound on the assistant's tool-calling loop per turn | 6 |
 | `OPENROUTER_API_KEY` | Cloud model access (or `secrets/openrouter_api_key.txt`) | — |

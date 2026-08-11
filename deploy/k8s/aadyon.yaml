@@ -173,8 +173,6 @@ spec:
               value: /etc/aadyon/secrets/jwt_secret
             - name: ARTIFACTS_DIR
               value: /srv/artifacts
-            - name: INVITE_REQUIRED
-              value: "false"
             # Developer surfaces (/data, /docs) stay off in a deployed instance.
             - name: DEV_MODE
               value: "false"

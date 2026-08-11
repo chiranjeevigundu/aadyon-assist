@@ -67,14 +67,10 @@ just bootstrap-dev     # writes .env and generates secrets/ (never overwrites ex
 just up                # builds, applies migrations, starts everything
 ```
 
-Open **http://localhost:8000** and create your account. The first account on a fresh instance can
-always sign up. After that, `INVITE_REQUIRED` decides whether new accounts need an invite code —
-there's no UI for minting one yet, so use the API from a signed-in account:
-
-```bash
-curl -X POST http://localhost:8000/api/auth/invites \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}'
-```
+Open **http://localhost:8000** and create your account. Signup is open — anyone who can reach the
+instance can register, and Postgres row-level security keeps each account's data to itself. If you
+don't want strangers registering, don't put it on the public internet; see
+[Tailscale](docs/TAILSCALE.md).
 
 To start over completely: `docker compose down -v && just up` (this destroys the database).
 
@@ -98,7 +94,6 @@ first, then the environment.
 |---|---|---|
 | `API_PORT` | `8000` | Host port for the web app |
 | `TZ` / `BRIEFING_HOUR` | `UTC` / `7` | Timezone, and when the daily briefing is written |
-| `INVITE_REQUIRED` | `true` | Require an invite code to register (the first account is always allowed) |
 | `DEV_MODE` | `false` | Expose developer tools — see below. Leave off in normal use |
 | `OPENROUTER_API_KEY` | — | Enables the assistant |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Local model endpoint |
@@ -170,9 +165,6 @@ underlying `docker compose` commands directly (see the `justfile`).
 
 **The page won't load** — check the stack is healthy with `docker compose ps`; `api` and `db`
 should be `healthy`. `just logs` shows why if not.
-
-**"an invite code is required" on signup** — an account already exists on this instance. Sign in
-with it and mint an invite, or set `INVITE_REQUIRED=false` in `.env` and restart.
 
 **The assistant says it isn't configured** — no model key. Add `OPENROUTER_API_KEY` to `.env`
 and `just up` again.

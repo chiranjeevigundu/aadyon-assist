@@ -47,16 +47,15 @@ def test_dev_surfaces_available_when_enabled(monkeypatch):
 def test_app_config_reports_the_flag(monkeypatch):
     off = _client(monkeypatch, "false").get("/api/app-config").json()
     assert off["dev_mode"] is False
-    assert "invite_required" in off
 
     on = _client(monkeypatch, "true").get("/api/app-config").json()
     assert on["dev_mode"] is True
 
 
 def test_app_config_exposes_nothing_sensitive(monkeypatch):
-    """It is public (no auth), so it must stay a two-flag payload."""
+    """It is public (no auth), so it must stay a minimal flag payload."""
     body = _client(monkeypatch, "false").get("/api/app-config").json()
-    assert set(body) == {"dev_mode", "invite_required"}
+    assert set(body) == {"dev_mode"}
 
 
 def test_product_routes_unaffected_by_the_flag(monkeypatch):
