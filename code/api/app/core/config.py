@@ -88,8 +88,6 @@ class Settings:
         # instead of sending, so dev/CI never send. Secret file wins over the env var.
         self.resend_api_key_file = os.getenv("RESEND_API_KEY_FILE", "/run/secrets/resend_api_key")
         self.mail_from = os.getenv("MAIL_FROM", "Aadyon Assist <onboarding@resend.dev>").strip()
-        # Require a valid invite code at signup (True for a shared instance).
-        self.invite_required = os.getenv("INVITE_REQUIRED", "true").lower() == "true"
         # Minutes a verify/reset email link stays valid.
         self.email_token_minutes = int(os.getenv("EMAIL_TOKEN_MINUTES", "60"))
         # Default monthly LLM token budget per user (0 or unset => unlimited).

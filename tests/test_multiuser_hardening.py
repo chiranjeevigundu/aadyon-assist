@@ -1,4 +1,4 @@
-"""Family-and-friends hardening: purpose tokens, invites, rate limiting, cost caps."""
+"""Multi-user hardening: purpose tokens, rate limiting, cost caps."""
 import pytest
 
 from app.services import auth, ratelimit, usage
@@ -27,20 +27,6 @@ def test_session_token_is_not_a_purpose_token(monkeypatch):
     assert auth.decode_token(tok) == "u9"
     with pytest.raises(auth.AuthError):
         auth.decode_purpose_token(tok, "reset")
-
-
-# --------------------------------------------------------------------------- invites
-def test_consume_invite_rejects_missing_and_unknown(monkeypatch):
-    with pytest.raises(auth.AuthError):
-        auth.consume_invite("")
-    patch_query(monkeypatch, "app.services.auth", lambda sql, p=(), c=False: [])  # no match
-    with pytest.raises(auth.AuthError):
-        auth.consume_invite("nope")
-
-
-def test_consume_invite_accepts_valid(monkeypatch):
-    patch_query(monkeypatch, "app.services.auth", lambda sql, p=(), c=False: [{"id": "i1"}])
-    auth.consume_invite("goodcode")  # does not raise
 
 
 # --------------------------------------------------------------------------- rate limiter

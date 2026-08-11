@@ -5,9 +5,10 @@ get_current_user is async on purpose: it is awaited in the request task, so the
 endpoints below it — where every query() then filters by RLS. A sync dependency
 would set the var in a throwaway threadpool context that the endpoint never sees.
 
-Family-and-friends hardening: signup is invite-gated, the auth endpoints are rate
-limited, and email verification + password reset use short-lived purpose-scoped
-tokens emailed via services.mailer.
+Signup is open — anyone who can reach the instance can create an account, and
+Postgres row-level security keeps each account's data to itself. The auth
+endpoints are rate limited, and email verification + password reset use
+short-lived purpose-scoped tokens emailed via services.mailer.
 """
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -71,22 +72,13 @@ def _send_verification(user: dict) -> None:
 @router.post("/signup")
 def signup(payload: dict, request: Request):
     _limit(request, "signup", 5, 3600)
-    s = get_settings()
     payload = payload or {}
     try:
-        # The first account on an empty instance is always allowed: issuing an invite
-        # requires being signed in, so requiring one here would leave a fresh install
-        # with no way to create any account at all.
-        needs_invite = s.invite_required and auth.has_any_user()
-        if needs_invite:
-            auth.consume_invite(payload.get("invite_code", ""))
         user = auth.create_user(
             payload.get("email", ""),
             payload.get("password", ""),
             payload.get("display_name"),
         )
-        if needs_invite:
-            auth.mark_invite_used(payload.get("invite_code", ""), user["id"])
         token = auth.make_token(user["id"])
     # ValueError: psycopg2 rejects values Postgres can't store (e.g. NUL bytes).
     except (auth.AuthError, ValueError) as e:
@@ -171,13 +163,6 @@ def reset_password(payload: dict, request: Request):
     except auth.AuthError as e:
         raise HTTPException(400, str(e)) from e
     return {"status": "ok"}
-
-
-@router.post("/invites")
-def create_invite(payload: dict, user: dict = Depends(get_current_user)):
-    """Mint an invite code (any signed-in user, for a trusted instance)."""
-    inv = auth.create_invite(note=(payload or {}).get("note"), created_by=user["id"])
-    return inv
 
 
 @router.patch("/me")

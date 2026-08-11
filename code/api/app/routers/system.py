@@ -32,9 +32,8 @@ def health():
 @router.get("/app-config")
 def app_config():
     """Public, non-sensitive UI flags. Lets the frontend render the right chrome
-    (dev links, invite field) without hardcoding deployment policy."""
-    s = get_settings()
-    return {"dev_mode": s.dev_mode, "invite_required": s.invite_required}
+    (dev links) without hardcoding deployment policy."""
+    return {"dev_mode": get_settings().dev_mode}
 
 
 @router.get("/summary", dependencies=_guard)

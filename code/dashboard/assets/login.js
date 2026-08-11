@@ -89,8 +89,6 @@ signupForm.addEventListener("submit", async (e) => {
 	const display_name = document.getElementById("signup-name").value;
 	const email = document.getElementById("signup-email").value;
 	const password = document.getElementById("signup-password").value;
-	const inviteGroup = document.getElementById("invite-group");
-	const invite_code = document.getElementById("signup-invite").value;
 	const btn = e.target.querySelector("button");
 
 	clearError();
@@ -98,26 +96,15 @@ signupForm.addEventListener("submit", async (e) => {
 	btn.innerText = "Signing up...";
 
 	try {
-		const body = { email, password, display_name };
-		if (!inviteGroup.classList.contains("hidden") && invite_code) {
-			body.invite_code = invite_code;
-		}
 		const res = await fetch("/api/auth/signup", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
+			body: JSON.stringify({ email, password, display_name }),
 		});
 
 		const data = await res.json();
 
-		if (!res.ok) {
-			const msg = data.detail || "Sign up failed";
-			// This server requires an invite code — reveal the field and let them retry.
-			if (/invite code/i.test(msg)) {
-				inviteGroup.classList.remove("hidden");
-			}
-			throw new Error(msg);
-		}
+		if (!res.ok) throw new Error(data.detail || "Sign up failed");
 
 		setToken(data.token);
 		window.location.href = "/";
