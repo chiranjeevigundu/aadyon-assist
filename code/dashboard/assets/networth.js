@@ -262,3 +262,16 @@ function render(d) {
 		load,
 	);
 }
+
+async function load() {
+	const app = document.getElementById("app");
+	try {
+		const res = await fetchApi("/api/networth");
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		render(await res.json());
+	} catch (err) {
+		app.innerHTML = `<div class="card">Couldn't load net worth: ${esc(err.message)}</div>`;
+	}
+}
+
+document.addEventListener("DOMContentLoaded", load);

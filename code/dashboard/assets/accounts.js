@@ -150,7 +150,12 @@ async function loadAccounts() {
 	$$("[data-disc]").forEach(
 		(b) =>
 			(b.onclick = async () => {
-				if (!confirm("Disconnect (forget the credentials)?")) return;
+				if (
+					!(await confirmAction(
+						"Disconnect this mailbox and forget its stored credentials?",
+					))
+				)
+					return;
 				await api("POST", `/api/email/${b.dataset.disc}/disconnect`);
 				toast("Disconnected", "ok");
 				loadAccounts();
@@ -159,7 +164,12 @@ async function loadAccounts() {
 	$$("[data-del]").forEach(
 		(b) =>
 			(b.onclick = async () => {
-				if (!confirm("Remove this account?")) return;
+				if (
+					!(await confirmAction(
+						"Remove this account? Its stored credentials are deleted too.",
+					))
+				)
+					return;
 				await api("DELETE", `/api/email_accounts/${b.dataset.del}`);
 				toast("Removed", "ok");
 				loadAccounts();

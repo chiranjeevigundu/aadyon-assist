@@ -422,15 +422,7 @@ function wireCrud(entity, noun, fields, rows, sel, reload) {
 	}
 }
 
-async function load() {
-	const app = document.getElementById("app");
-	try {
-		const res = await fetchApi("/api/networth");
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		render(await res.json());
-	} catch (err) {
-		app.innerHTML = `<div class="card">Couldn't load net worth: ${esc(err.message)}</div>`;
-	}
-}
-
-document.addEventListener("DOMContentLoaded", load);
+/* Page bootstrap lives in each page's own script — base.js is shared by every
+ * page and must not fetch page-specific data. (The net worth loader used to live
+ * here, which made every page request /api/networth and raced the real loader on
+ * /tracker.) */
