@@ -91,7 +91,8 @@ const DEADLINE_FIELDS = [
 			{ value: "done", label: "Done" },
 		],
 	},
-	{ name: "category", label: "Category", type: "text" },
+	// NOT NULL DEFAULT 'general' in the schema — blank must not become null.
+	{ name: "category", label: "Category", type: "text", emptyAs: "general" },
 	{ name: "notes", label: "Notes", type: "textarea" },
 ];
 

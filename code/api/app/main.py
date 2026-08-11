@@ -13,6 +13,21 @@ from app.routers.auth import get_current_user
 from app.routers.crud import CRUD_ROUTERS
 
 
+class RevalidatingStatic(StaticFiles):
+    """StaticFiles that asks the browser to revalidate instead of guessing.
+
+    Without an explicit Cache-Control, browsers apply heuristic caching and can
+    serve a stale dashboard bundle for a long time after an upgrade — the JS has
+    no content hash in its filename, so the URL never changes. `no-cache` still
+    allows a conditional request, so the ETag makes the common case a cheap 304.
+    """
+
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
 def _bootstrap_storage() -> None:
     """On an S3-mode deployment, create the bucket if it doesn't exist so a fresh AWS
     account or a just-started emulator works with zero manual `aws s3 mb`. Best-effort:
@@ -89,7 +104,7 @@ def create_app() -> FastAPI:
 
     dashboard_dir = get_settings().dashboard_dir
     if dashboard_dir.exists():
-        app.mount("/static", StaticFiles(directory=str(dashboard_dir)), name="static")
+        app.mount("/static", RevalidatingStatic(directory=str(dashboard_dir)), name="static")
 
     return app
 
