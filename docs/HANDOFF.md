@@ -8,7 +8,111 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-10) — docs pass for open-source visitors + first-run fix (branch `claude/docs-and-first-run`)
+## Latest session (2026-08-12b) — LLM plumbing extracted to `llmkit`; LangFuse tracing
+
+`services/llm.py` and `services/routing.py` are now thin adapters over
+[llmkit](https://github.com/chiranjeevigundu/llmkit) (Apache-2.0, shared with
+synapse-storage-system). Pinned by commit SHA in `code/api/requirements.txt` — tags can
+move, SHAs cannot, and the tarball form is used because `python:3.12-slim` has no git.
+
+**LangFuse tracing, at one chokepoint.** Every model call in this repo goes through
+`chat()`, so attaching tracing there covers the assistant loop, email extraction, and
+document ingestion at once. Per-call-site instrumentation would mean the next call site
+is untraced by default and nobody notices until a cost report has a hole in it. Off
+unless `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set. Failures are traced
+alongside successes — a dashboard showing only successes hides retry storms.
+
+**Config is built per call, not via `llmkit.configure()` at startup.** This is the one
+decision worth reading before changing anything here. `configure()` installs a
+process-wide default and is the obvious call from `create_app()`. It would break
+`tests/test_llm.py`: those tests set `OPENROUTER_API_KEY` with monkeypatch *after*
+import and rely on `Settings.openrouter_api_key` being a property that re-reads. pytest
+runs files alphabetically and several earlier files build the app through TestClient,
+so `configure()` would run first, pin a config, and silently ignore every later env
+change — with the failure appearing in `test_llm.py`, far from the cause. Per-call
+config keeps the original semantics exactly, at the cost of one small frozen dataclass
+per model call.
+
+**Two bugs fixed by the migration:**
+
+*The vision routing bypass.* `document_ingest` called
+`chat("openrouter", "openai/gpt-4o-mini", …)` inline, bypassing `resolve()`. Changing
+the extraction model meant editing that file, and the traffic arrived untagged so its
+spend was invisible per-tier. There is now a `vision` tier and it routes.
+
+*Fence stripping without a leading strip.* The local implementation tested
+`content.startswith("```json")` against the raw response, so any model reply beginning
+with a newline kept its fence, failed `json.loads`, and marked the document `status
+='error'`. Intermittent, because whether a model emits a leading newline is not
+deterministic. Now `llmkit.parse.parse_json_response`, which strips first.
+
+**Contract change:** `routing.resolve()` gained a `tier` key reporting the tier
+*actually used* — which differs from the one requested when an unknown tier falls back
+to `reasoning`, so the fallback now shows up in cost reporting instead of masquerading.
+Call sites read it with `.get("tier")`, deliberately: `tier` is metadata and its absence
+must never break a model call, including when a test double returns a bare route dict.
+
+**Environment note.** `litellm` cannot be installed on Windows without long paths
+enabled — it ships a file at exactly 260 characters, and `LongPathsEnabled` is 0 here.
+`llmkit` treats that as an optional extra and *verifies* the import rather than merely
+attempting it, because a truncated install leaves a directory Python imports as a
+namespace package: `import litellm` succeeds while `litellm.completion` does not exist.
+For local verification the suite was run against a minimal fake `litellm` on
+`PYTHONPATH`; the tests patch `llm.litellm.completion` and never call the real library,
+so nothing is lost. **219 tests pass**, `ruff check .` clean. Only
+`test_auth.py::test_password_hash_roundtrip` is deselected — `passlib 1.7.4` against
+`bcrypt 5.x`, an environment incompatibility unrelated to this change.
+
+---
+
+## Earlier session (2026-08-12) — `search_documents`: retrieval over documents, via an external service
+
+Added one read tool. The assistant can now answer from the user's **documents**, not only from
+the structured financial records, and every passage comes back with a source citation.
+
+Retrieval lives in a **separate repo** (`hybrid-rag`, sibling checkout under `D:\AI\HemoLab`),
+reached over its read-only HTTP API. It is not vendored here, and that is the point: this repo
+has no RAG in it and never did — `memory_chunks.embedding` has been declared since the first
+schema and is still never written or read, and `recent_memories()` is `ORDER BY created_at DESC
+LIMIT 20`. Rather than grow a second half-built retriever inside the assistant, the capability
+is a service with its own eval harness and its own regression gate.
+
+**What changed**
+
+- `core/config.py` — `RAG_SERVICE_URL` (empty by default), `RAG_TIMEOUT_S`, `RAG_TOP_K`.
+- `services/tools.py` — the `search_documents` schema, a dispatch branch, and `_search_documents`.
+- `tests/test_search_documents.py` — 13 tests.
+
+**Two decisions worth keeping**
+
+*The tool is withheld when no service is configured.* `schemas_for()` filters it out rather than
+advertising a tool that always errors. An absent capability and a broken one should not look the
+same to a model: the second costs a step from `AGENT_MAX_STEPS` and teaches it that tools here are
+unreliable.
+
+*Every network failure returns as a tool result, never an exception.* Timeout, connection refused,
+HTTP 5xx, and malformed JSON each produce an `{"error": ...}` the model can read. A retrieval
+service being down is an ordinary operational condition — the assistant should say it could not
+search the documents and carry on with the records it can still read, not lose the turn. The
+timeout is explicit for the same reason: `requests` has no default, so a hung service would hold
+an assistant turn open indefinitely.
+
+It is a **read** tool, so it runs autonomously and needs no `propose_action` gate — it cannot
+change anything. `requests` was already pinned; no new dependency.
+
+**Not done here:** nothing indexes documents into that service yet from this side. Indexing is a
+batch job in the retrieval repo, run against a corpus directory. Wiring the existing
+`documents`/S3 upload path into it is the obvious next step and is deliberately not in this change.
+
+**Environment note for whoever picks this up:** `tests/test_llm.py` and
+`test_auth.py::test_password_hash_roundtrip` fail on a machine with `litellm` installed as a
+namespace package, or `passlib 1.7.4` against `bcrypt 5.x`. Both are dependency-environment
+problems, not code — verified by stashing the change and watching them fail identically.
+209 tests pass otherwise; `ruff check .` is clean.
+
+---
+
+## Earlier session (2026-08-10) — docs pass for open-source visitors + first-run fix (branch `claude/docs-and-first-run`)
 
 Owner: "work on all documentation for everyone visiting this repo." Audited the docs against the
 code first, which surfaced a **critical first-run bug** that mattered more than the prose:

@@ -127,13 +127,34 @@ class Settings:
         # 30 days by default — mobile clients stay logged in between sessions.
         self.jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 30)))
 
+        # --- Observability: LangFuse traces for every model call ---
+        # Empty keys = tracing off, which is the default. llmkit attaches LangFuse at
+        # the single chat() chokepoint, so this covers the assistant loop, email
+        # extraction and document ingestion at once rather than per call site.
+        self.langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY", "").strip()
+        self.langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY", "").strip()
+        self.langfuse_host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+        # --- Retrieval: the hybrid-rag service (separate repo, read-only HTTP API) ---
+        # Empty = the assistant is not offered a document-search tool at all. That is
+        # deliberate: advertising a tool that always errors costs a tool-call round
+        # and teaches the model to distrust the whole surface. Absent capability and
+        # broken capability should not look the same to a model.
+        self.rag_service_url = os.getenv("RAG_SERVICE_URL", "").strip().rstrip("/")
+        self.rag_timeout_s = float(os.getenv("RAG_TIMEOUT_S", "8"))
+        self.rag_top_k = int(os.getenv("RAG_TOP_K", "5"))
+
         # Max tool-calling rounds the assistant runs per turn (bounds the loop).
         self.agent_max_steps = int(os.getenv("AGENT_MAX_STEPS", "6"))
-        # Fallback tier -> (provider, model) for model routing.
+        # Tier -> (provider, model) for model routing.
+        # `vision` exists so document ingestion can route rather than hardcoding a
+        # provider inline — a hardcoded call bypasses the tier abstraction and arrives
+        # untagged in cost reporting, which is how one tier's spend goes missing.
         self.default_routes = {
             "reasoning": ("openrouter", "openrouter/auto"),
             "cheap": ("openrouter", "openai/gpt-4o-mini"),
             "local": ("ollama", "llama3.1"),
+            "vision": ("openrouter", "openai/gpt-4o-mini"),
         }
 
     @property

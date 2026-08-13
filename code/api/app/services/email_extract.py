@@ -88,7 +88,7 @@ def extract(sender: str, subject: str, body: str) -> dict | None:
         {"role": "system", "content": _EXTRACT_SYS},
         {"role": "user", "content": f"From: {sender}\nSubject: {subject}\n\n{body}"},
     ]
-    resp = chat(route["provider"], route["model"], msgs, None, 0.0)
+    resp = chat(route["provider"], route["model"], msgs, None, 0.0, tier=route.get("tier"))
     txt = (resp["message"].get("content") or "").strip()
     if txt.startswith("```"):
         txt = txt.strip("`")
