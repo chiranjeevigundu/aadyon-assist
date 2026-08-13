@@ -23,8 +23,11 @@ def test_analyze_document_pdf(monkeypatch, tmp_path):
     # Mock PDF extraction
     monkeypatch.setattr("app.services.document_ingest.extract_text_from_pdf", lambda path: "This is a bill for $50 due 2026-08-01")
 
-    # Mock LLM chat
-    def mock_chat(provider, model, messages):
+    # Mock LLM chat. **kwargs matters: the real chat() gained a `tier` argument for
+    # cost tagging, and a double with a fixed signature raises TypeError instead —
+    # which the broad except in analyze_document turns into an error dict, so the
+    # test fails on a missing "status" key rather than on the actual cause.
+    def mock_chat(provider, model, messages, *args, **kwargs):
         return {
             "message": {
                 "content": json.dumps({"items": [{"kind": "bill", "title": "Test Bill", "amount": 50, "due_date": "2026-08-01"}]})

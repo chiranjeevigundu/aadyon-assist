@@ -7,11 +7,13 @@ import base64
 import json
 from datetime import date
 
+from llmkit.parse import parse_json_response
 from pypdf import PdfReader
 
 from app.db.session import current_user_id, query
 from app.services import document_store, storage
 from app.services.llm import chat
+from app.services.routing import resolve
 
 SYS_PROMPT = """You are a document analyzer. Extract actionable financial/life items from the document text or image.
 Return a JSON object in this exact format, with NO markdown formatting around it:
@@ -71,18 +73,18 @@ def analyze_document(document_id: str) -> dict:
             return {"error": f"unsupported mime type: {mime_type}"}
 
     try:
-        # Use openrouter cheap for OCR/extraction
-        resp = chat("openrouter", "openai/gpt-4o-mini", messages)
-        content = resp["message"]["content"]
-        # Strip markdown code blocks if present
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.startswith("```"):
-            content = content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        
-        parsed = json.loads(content.strip())
+        # Route rather than hardcoding a provider. The previous call named
+        # ("openrouter", "openai/gpt-4o-mini") inline, which bypassed resolve()
+        # entirely: changing the extraction model meant editing this file, and the
+        # traffic arrived untagged so its spend was invisible in per-tier reporting.
+        route = resolve("vision")
+        resp = chat(route["provider"], route["model"], messages, tier=route.get("tier"))
+        # Fence stripping now goes through llmkit, which strips leading whitespace
+        # *before* testing for the fence. The version here did not, so any model
+        # response beginning with a newline kept its fence, failed to parse, and
+        # marked the document 'error' — intermittently, since whether a model emits a
+        # leading newline is not deterministic.
+        parsed = parse_json_response(resp["message"]["content"])
         items = parsed.get("items", [])
     except Exception as e:
         query("UPDATE documents SET status='error' WHERE id=%s", (document_id,), commit=True)

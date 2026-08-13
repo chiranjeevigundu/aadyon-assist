@@ -138,14 +138,14 @@ def run(conversation_id, user_text: str) -> dict:
 
     # No tool-calling provider (e.g. Ollama): single completion, no writes.
     if not tool_schemas:
-        resp = chat(provider, model, messages, None, route["temperature"])
+        resp = chat(provider, model, messages, None, route["temperature"], tier=route.get("tier"))
         usage.record(uid, _tokens(resp))
         reply = resp["message"].get("content", "") or "(no reply)"
         _save(conversation_id, "assistant", reply)
         return {"reply": reply, "proposals": proposals, "actions": actions}
 
     for _step in range(get_settings().agent_max_steps):
-        resp = chat(provider, model, messages, tool_schemas, route["temperature"])
+        resp = chat(provider, model, messages, tool_schemas, route["temperature"], tier=route.get("tier"))
         usage.record(uid, _tokens(resp))
         msg = resp["message"]
         tool_calls = msg.get("tool_calls") or []
@@ -200,7 +200,7 @@ def run_stream(conversation_id, user_text: str):
     ctx = {"user_id": uid}
 
     if not tool_schemas:
-        resp = chat(provider, model, messages, None, route["temperature"], stream=True)
+        resp = chat(provider, model, messages, None, route["temperature"], stream=True, tier=route.get("tier"))
         content_accum = ""
         for chunk in resp:
             delta = chunk.choices[0].delta
@@ -216,7 +216,7 @@ def run_stream(conversation_id, user_text: str):
         return
 
     for _step in range(get_settings().agent_max_steps):
-        resp = chat(provider, model, messages, tool_schemas, route["temperature"], stream=True)
+        resp = chat(provider, model, messages, tool_schemas, route["temperature"], stream=True, tier=route.get("tier"))
 
         tool_calls_dict = {}
         content_accum = ""
