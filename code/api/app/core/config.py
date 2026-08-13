@@ -127,6 +127,15 @@ class Settings:
         # 30 days by default — mobile clients stay logged in between sessions.
         self.jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 30)))
 
+        # --- Retrieval: the hybrid-rag service (separate repo, read-only HTTP API) ---
+        # Empty = the assistant is not offered a document-search tool at all. That is
+        # deliberate: advertising a tool that always errors costs a tool-call round
+        # and teaches the model to distrust the whole surface. Absent capability and
+        # broken capability should not look the same to a model.
+        self.rag_service_url = os.getenv("RAG_SERVICE_URL", "").strip().rstrip("/")
+        self.rag_timeout_s = float(os.getenv("RAG_TIMEOUT_S", "8"))
+        self.rag_top_k = int(os.getenv("RAG_TOP_K", "5"))
+
         # Max tool-calling rounds the assistant runs per turn (bounds the loop).
         self.agent_max_steps = int(os.getenv("AGENT_MAX_STEPS", "6"))
         # Fallback tier -> (provider, model) for model routing.

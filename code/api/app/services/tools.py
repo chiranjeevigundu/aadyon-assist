@@ -79,6 +79,32 @@ _SCHEMAS: dict = {
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    "search_documents": {
+        "type": "function",
+        "function": {
+            "name": "search_documents",
+            "description": "Search the user's indexed document corpus for passages relevant to a "
+                           "question, and get back quotable text with a source citation. Use this "
+                           "for anything whose answer lives in a document rather than in the "
+                           "structured financial records — policy wording, statement detail, "
+                           "contract terms, reference numbers. Prefer get_snapshot for figures "
+                           "that come from the user's own asset and debt records.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The question, or an exact identifier to look up.",
+                    },
+                    "k": {
+                        "type": "integer",
+                        "description": "How many passages to return. Defaults to 5.",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
     "get_recent_documents": {
         "type": "function",
         "function": {
@@ -207,13 +233,25 @@ _build_write_schemas()
 _WRITE_TOOL_NAMES = ["update_profile"] + list(_TOOL_TABLE.keys())
 _BY_TYPE = {
     "assistant": ["get_snapshot", "get_transactions", "get_document_extractions",
-                  "get_recent_documents", "read_document", "remember"]
+                  "get_recent_documents", "read_document", "remember", "search_documents"]
     + _WRITE_TOOL_NAMES + ["propose_action"],
 }
 
 
 def schemas_for(agent_type: str) -> list:
-    return [_SCHEMAS[n] for n in _BY_TYPE.get(agent_type, ["get_snapshot"]) if n in _SCHEMAS]
+    """Tool schemas for an agent type, filtered to what this deployment can actually do.
+
+    `search_documents` is withheld unless a retrieval service is configured. Offering
+    a tool that always returns an error costs a round of the step budget and teaches
+    the model that tools here are unreliable — a capability that is absent should not
+    be indistinguishable from one that is broken.
+    """
+    from app.core.config import get_settings
+
+    names = _BY_TYPE.get(agent_type, ["get_snapshot"])
+    if not get_settings().rag_service_url:
+        names = [n for n in names if n != "search_documents"]
+    return [_SCHEMAS[n] for n in names if n in _SCHEMAS]
 
 
 # --------------------------------------------------------------------------- dispatch
@@ -243,6 +281,8 @@ def _dispatch(name: str, args: dict, ctx: dict) -> dict:
         return _read_document(args)
     if name == "remember":
         return _remember(args)
+    if name == "search_documents":
+        return _search_documents(args)
     if name == "propose_action":
         return _propose(args, ctx)
     if name == "update_profile":
@@ -337,6 +377,71 @@ def _remember(args: dict) -> dict:
         (current_user_id(), content[:2000]), commit=True,
     )
     return {"ok": True, "action": "remembered"}
+
+
+def _search_documents(args: dict) -> dict:
+    """Query the hybrid-rag service for passages relevant to a question.
+
+    A read tool, so it runs without an approval gate — it cannot change anything. It
+    is also the only tool here that leaves the process, which brings two obligations
+    the in-database tools do not have:
+
+    Every failure returns as a tool result rather than an exception. A retrieval
+    service being down is an ordinary operational condition, and the assistant should
+    say "I could not search the documents" and carry on with the financial records it
+    can still read, not abandon the turn.
+
+    The timeout is short and explicit. Without one, a hung service holds an assistant
+    turn open until the HTTP client's default gives up, which on `requests` is never.
+    """
+    import requests
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    base = settings.rag_service_url
+    if not base:
+        return {"error": "document search is not configured on this deployment"}
+
+    query_text = (args.get("query") or "").strip()
+    if not query_text:
+        return {"error": "query is required"}
+    try:
+        k = int(args.get("k") or settings.rag_top_k)
+    except (TypeError, ValueError):
+        k = settings.rag_top_k
+    k = max(1, min(k, 20))
+
+    try:
+        response = requests.post(
+            f"{base}/search",
+            json={"query": query_text[:2000], "k": k},
+            timeout=settings.rag_timeout_s,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.Timeout:
+        return {"error": f"document search timed out after {settings.rag_timeout_s}s"}
+    except requests.RequestException as e:
+        return {"error": f"document search unavailable: {type(e).__name__}"}
+    except ValueError:
+        return {"error": "document search returned a malformed response"}
+
+    results = [
+        {
+            "citation": hit.get("citation"),
+            "source": hit.get("source"),
+            "section": hit.get("section"),
+            # Trimmed: the assistant loop persists every tool result to `messages`,
+            # and ten full passages per call would dominate both the context window
+            # and the stored conversation.
+            "text": " ".join((hit.get("text") or "").split())[:1200],
+        }
+        for hit in payload.get("results", [])
+    ]
+    if not results:
+        return {"results": [], "note": "no matching passages in the indexed documents"}
+    return {"count": len(results), "results": results}
 
 
 def recent_memories(limit: int = 20) -> list[str]:

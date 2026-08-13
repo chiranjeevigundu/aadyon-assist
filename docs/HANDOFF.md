@@ -8,7 +8,54 @@ Protocol: see "Working across assistants" in [AGENTS.md](../AGENTS.md).
 
 ---
 
-## Latest session (2026-08-10) — docs pass for open-source visitors + first-run fix (branch `claude/docs-and-first-run`)
+## Latest session (2026-08-12) — `search_documents`: retrieval over documents, via an external service
+
+Added one read tool. The assistant can now answer from the user's **documents**, not only from
+the structured financial records, and every passage comes back with a source citation.
+
+Retrieval lives in a **separate repo** (`hybrid-rag`, sibling checkout under `D:\AI\HemoLab`),
+reached over its read-only HTTP API. It is not vendored here, and that is the point: this repo
+has no RAG in it and never did — `memory_chunks.embedding` has been declared since the first
+schema and is still never written or read, and `recent_memories()` is `ORDER BY created_at DESC
+LIMIT 20`. Rather than grow a second half-built retriever inside the assistant, the capability
+is a service with its own eval harness and its own regression gate.
+
+**What changed**
+
+- `core/config.py` — `RAG_SERVICE_URL` (empty by default), `RAG_TIMEOUT_S`, `RAG_TOP_K`.
+- `services/tools.py` — the `search_documents` schema, a dispatch branch, and `_search_documents`.
+- `tests/test_search_documents.py` — 13 tests.
+
+**Two decisions worth keeping**
+
+*The tool is withheld when no service is configured.* `schemas_for()` filters it out rather than
+advertising a tool that always errors. An absent capability and a broken one should not look the
+same to a model: the second costs a step from `AGENT_MAX_STEPS` and teaches it that tools here are
+unreliable.
+
+*Every network failure returns as a tool result, never an exception.* Timeout, connection refused,
+HTTP 5xx, and malformed JSON each produce an `{"error": ...}` the model can read. A retrieval
+service being down is an ordinary operational condition — the assistant should say it could not
+search the documents and carry on with the records it can still read, not lose the turn. The
+timeout is explicit for the same reason: `requests` has no default, so a hung service would hold
+an assistant turn open indefinitely.
+
+It is a **read** tool, so it runs autonomously and needs no `propose_action` gate — it cannot
+change anything. `requests` was already pinned; no new dependency.
+
+**Not done here:** nothing indexes documents into that service yet from this side. Indexing is a
+batch job in the retrieval repo, run against a corpus directory. Wiring the existing
+`documents`/S3 upload path into it is the obvious next step and is deliberately not in this change.
+
+**Environment note for whoever picks this up:** `tests/test_llm.py` and
+`test_auth.py::test_password_hash_roundtrip` fail on a machine with `litellm` installed as a
+namespace package, or `passlib 1.7.4` against `bcrypt 5.x`. Both are dependency-environment
+problems, not code — verified by stashing the change and watching them fail identically.
+209 tests pass otherwise; `ruff check .` is clean.
+
+---
+
+## Earlier session (2026-08-10) — docs pass for open-source visitors + first-run fix (branch `claude/docs-and-first-run`)
 
 Owner: "work on all documentation for everyone visiting this repo." Audited the docs against the
 code first, which surfaced a **critical first-run bug** that mattered more than the prose:
